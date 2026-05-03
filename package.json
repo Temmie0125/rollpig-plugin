@@ -1,0 +1,15 @@
+{
+  "name": "yunzai-plugin-rollpig",
+  "version": "1.0.0",
+  "description": "今天是什么小猪 - Yunzai-Bot 插件",
+  "type": "module",
+  "main": "index.js",
+  "author": "Bearlele",
+  "license": "MIT",
+  "keywords": [
+    "yunzai",
+    "yunzai-bot",
+    "plugin",
+    "rollpig"
+  ]
+}
