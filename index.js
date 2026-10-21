@@ -253,6 +253,42 @@ export class RollPigPlugin extends plugin {
     return { collected, total, percent, bestPig, bestCount }
   }
 
+  /** 从用户缓存表获取用户昵称：好友列表 → 群成员列表 → 消息自带发送者信息，获取不到返回 null */
+  getUserNickname(e, userId) {
+    // 适配器缓存键与 e.user_id 同源（QQBot 为字符串、OneBot 为数字），目标为本人时保留原始类型，两种形态都尝试
+    const keys = [...new Set([
+      String(e?.user_id) === userId ? e.user_id : null,
+      userId,
+      Number(userId)
+    ].filter(key => key != null && !(typeof key === 'number' && Number.isNaN(key))))]
+
+    // 好友缓存：QQBot 群聊消息也会写入，可补上私信场景不下发的昵称
+    for (const key of keys) {
+      const friend = Bot.fl?.get?.(key)
+      if (friend?.nickname || friend?.remark) return friend.nickname || friend.remark
+    }
+
+    // 群成员缓存：card 为群名片，nickname 为QQ昵称
+    for (const members of Bot.gml?.values?.() || []) {
+      for (const key of keys) {
+        const member = members.get?.(key)
+        if (member?.card || member?.nickname) return member.card || member.nickname
+      }
+    }
+
+    if (String(e?.user_id) === userId && (e?.sender?.card || e?.sender?.nickname)) {
+      return e.sender.card || e.sender.nickname
+    }
+    return null
+  }
+
+  /** 猪圈消息头：群聊内@目标；私信没有@，以用户昵称代替，实在获取不到时用“你”/“TA”占位 */
+  penHeader(e, userId, isSelf) {
+    if (e.isGroup || e.group) return [`【`, segment.at(userId), ` 的猪圈】`]
+    const nickname = this.getUserNickname(e, userId) || (isSelf ? '你' : 'TA')
+    return [`【${nickname}的猪圈】`]
+  }
+
   /** #猪圈：查看个人猪猪图鉴与收集进度，可@查看他人 */
   async pigPen(e) {
     let userId = e.user_id.toString()
@@ -288,17 +324,19 @@ export class RollPigPlugin extends plugin {
       stats.push(`🐷 本命猪: 【${bestPig.name}】Lv.${bestCount}（抓到过${bestCount}次）`)
     }
 
+    const header = this.penHeader(e, userId, isSelf)
+
     try {
       const image = await this.renderPen(userId)
       if (!image) throw new Error('渲染器返回空图片')
 
-      const msg = [`【`, segment.at(userId), ` 的猪圈】\n${stats.join('\n')}\n`, image]
+      const msg = [...header, `\n${stats.join('\n')}\n`, image]
       const buttons = this.penButtons()
       if (this.config.markdown && this.isQQBot(e) && buttons) msg.push(buttons)
       await e.reply(msg)
     } catch (err) {
       logger.error('[猪圈] 渲染失败:', err)
-      await e.reply([`【`, segment.at(userId), ` 的猪圈】\n${stats.join('\n')}`])
+      await e.reply([...header, `\n${stats.join('\n')}`])
     }
     return true
   }
