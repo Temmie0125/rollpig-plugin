@@ -403,7 +403,7 @@ export class RollPigPlugin extends plugin {
 
       if (count === 1) {
         const pig = this.pigCache[Math.floor(Math.random() * this.pigCache.length)]
-        const imageUrl = `https://pighub.top/data/${pig.thumbnail.split('/').pop()}`
+        const imageUrl = this.pigImageUrl(pig)
         await e.reply(segment.image(imageUrl))
       } else {
         const selected = []
@@ -414,7 +414,7 @@ export class RollPigPlugin extends plugin {
         }
 
         const msgs = selected.map(pig => {
-          const imageUrl = `https://pighub.top/data/${pig.thumbnail.split('/').pop()}`
+          const imageUrl = this.pigImageUrl(pig)
           return {
             message: [pig.title, segment.image(imageUrl)],
             nickname: pig.title,
@@ -455,11 +455,11 @@ export class RollPigPlugin extends plugin {
 
       if (found.length === 1) {
         const pig = found[0]
-        const imageUrl = `https://pighub.top/data/${pig.thumbnail.split('/').pop()}`
+        const imageUrl = this.pigImageUrl(pig)
         await e.reply([`${pig.title}-${pig.id}`, segment.image(imageUrl)])
       } else {
         const msgs = found.slice(0, 20).map(pig => {
-          const imageUrl = `https://pighub.top/data/${pig.thumbnail.split('/').pop()}`
+          const imageUrl = this.pigImageUrl(pig)
           return {
             message: [`${pig.title}-${pig.id}`, segment.image(imageUrl)],
             nickname: pig.title,
@@ -475,17 +475,69 @@ export class RollPigPlugin extends plugin {
     return true
   }
 
-  async refreshPigHub() {
+  /** PigHub 图片 URL：新接口返回相对路径 image_url，旧缓存字段为 thumbnail */
+  pigImageUrl(pig) {
+    const raw = pig?.image_url || pig?.thumbnail
+    if (!raw) return ''
     try {
-      const response = await fetch('https://pighub.top/api/all-images')
-      const data = await response.json()
-      if (data?.images) {
-        this.pigCache = data.images
-        logger.info(`[今天是什么小猪] 从 PigHub 缓存了 ${this.pigCache.length} 头猪猪`)
-      }
-    } catch (err) {
-      logger.error('[今天是什么小猪] PigHub 刷新失败:', err)
+      return new URL(raw, 'https://pighub.top/').href
+    } catch {
+      return raw
     }
+  }
+
+  async refreshPigHub() {
+    // 并发去重：每日任务与随机/搜索命令可能同时触发刷新
+    if (this._pigHubRefreshing) return this._pigHubRefreshing
+
+    this._pigHubRefreshing = (async () => {
+      // PigHub 接口已从 /api/all-images 迁移为 /api/images?sort=<0名称|1最早|2最新|3热门>；
+      // 旧接口现在返回 404 空响应，response.json() 会抛 "Unexpected end of JSON input"
+      const url = 'https://pighub.top/api/images?sort=2'
+      let lastErr
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          const response = await fetch(url, {
+            headers: {
+              Accept: 'application/json',
+              'User-Agent': 'Yunzai-RollPig/1.0'
+            },
+            signal: AbortSignal.timeout(15000)
+          })
+          if (!response.ok) throw new Error(`HTTP ${response.status}`)
+
+          const text = await response.text()
+          if (!text.trim()) throw new Error('响应为空')
+
+          let data
+          try {
+            data = JSON.parse(text)
+          } catch {
+            throw new Error(`响应不是合法 JSON: ${text.slice(0, 80)}`)
+          }
+          if (data?.code !== 0 || !Array.isArray(data.data))
+            throw new Error(data?.message || '响应格式不正确')
+
+          const images = data.data
+            .filter(pig => pig && pig.title && (pig.image_url || pig.thumbnail))
+            .map(pig => ({ ...pig, thumbnail: pig.image_url || pig.thumbnail }))
+          if (!images.length) throw new Error('图片列表为空')
+
+          this.pigCache = images
+          logger.info(`[今天是什么小猪] 从 PigHub 缓存了 ${this.pigCache.length} 头猪猪`)
+          return true
+        } catch (err) {
+          lastErr = err
+          if (attempt < 3) await new Promise(resolve => setTimeout(resolve, 3000 * attempt))
+        }
+      }
+      logger.error('[今天是什么小猪] PigHub 刷新失败:', lastErr)
+      return false
+    })().finally(() => {
+      this._pigHubRefreshing = null
+    })
+
+    return this._pigHubRefreshing
   }
 
   findPigImage(pigId) {
