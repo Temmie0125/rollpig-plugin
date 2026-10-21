@@ -1,0 +1,8 @@
+# 今天是什么小猪 插件配置
+# 首次运行时会自动将本文件复制为 config/config.yaml，请在 config.yaml 中修改
+# 管理员也可直接发送 #猪猪设置markdown开启 / #猪猪设置markdown关闭 快捷切换
+
+# Markdown回复：开启后「今日小猪」「猪圈」将按官方QQBot支持的Markdown方式回复
+# 格式：@用户 → 第几次抽到提示 → 猪猪图片 → 名称 → 简述 → 详细描述（引用注释块）→ 按钮（猪圈 / 今日猪猪）
+# 仅官方QQBot适配器（QQ群/QQ私聊/QQ频道）生效，其他平台自动回退为普通图片回复
+markdown: false

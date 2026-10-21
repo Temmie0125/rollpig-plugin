@@ -3,11 +3,19 @@ import fs from 'fs'
 import { segment } from 'oicq'
 import { createRequire } from 'module'
 import path from 'path'
-import { fileURLToPath } from 'url'
+import { fileURLToPath, pathToFileURL } from 'url'
+import yaml from 'yaml'
+import puppeteer from '../../lib/puppeteer/puppeteer.js'
 
 const require = createRequire(import.meta.url)
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
+
+/** 默认配置，与 config/config.default.yaml 保持一致 */
+const DEFAULT_CONFIG = {
+  /** Markdown回复：官方QQBot 使用 Markdown 格式回复（@用户 + 引用块 + 按钮） */
+  markdown: false
+}
 
 export class RollPigPlugin extends plugin {
   constructor() {
@@ -28,6 +36,15 @@ export class RollPigPlugin extends plugin {
         {
           reg: '^#?(找猪|搜猪)\\s+(.+)$',
           fnc: 'findPig'
+        },
+        {
+          reg: '^#?(猪圈|猪猪图鉴|我的猪圈|我的图鉴)\\s*$',
+          fnc: 'pigPen'
+        },
+        {
+          reg: '^#?猪猪设置\\s*markdown\\s*(开启|关闭|on|off)\\s*$',
+          fnc: 'setMarkdown',
+          permission: 'master'
         }
       ]
     })
@@ -35,7 +52,12 @@ export class RollPigPlugin extends plugin {
     this.pigData = []
     this.pigCache = []
     this.userRecords = {}
+    this.config = { ...DEFAULT_CONFIG }
     this.loadData()
+    this.config = this.loadConfig()
+
+    // 每日0点刷新PigHub缓存，由宿主loader统一调度；仅内存缓存，不会写入本地图鉴库与用户记录
+    this.task = { name: 'PigHub数据刷新', cron: '0 0 * * *', fnc: () => this.refreshPigHub() }
   }
 
   loadData() {
@@ -43,14 +65,38 @@ export class RollPigPlugin extends plugin {
       const pigJsonPath = path.join(__dirname, 'resource', 'pig.json')
       this.pigData = JSON.parse(fs.readFileSync(pigJsonPath, 'utf-8'))
       logger.info(`[今天是什么小猪] 加载了 ${this.pigData.length} 条小猪数据`)
-      
+
       const recordPath = path.join(__dirname, 'data', 'records.json')
       if (fs.existsSync(recordPath)) {
         this.userRecords = JSON.parse(fs.readFileSync(recordPath, 'utf-8'))
       }
+      // 旧版记录（{ pig_id, date }）迁移为计数格式
+      for (const id in this.userRecords) {
+        this.migrateRecord(this.userRecords[id])
+      }
     } catch (err) {
       logger.error('[今天是什么小猪] 数据加载失败:', err)
     }
+  }
+
+  /** 旧版单条记录迁移：补齐 pigs 计数与 total */
+  migrateRecord(record) {
+    if (!record || typeof record !== 'object') return record
+    if (!record.pigs || typeof record.pigs !== 'object') {
+      record.pigs = record.pig_id ? { [record.pig_id]: 1 } : {}
+    }
+    if (typeof record.total !== 'number') {
+      record.total = Object.values(record.pigs).reduce((sum, n) => sum + (Number(n) || 0), 0)
+    }
+    return record
+  }
+
+  /** 获取用户记录，不存在时创建空记录 */
+  getUserRecord(userId) {
+    if (!this.userRecords[userId]) {
+      this.userRecords[userId] = { pigs: {}, total: 0 }
+    }
+    return this.migrateRecord(this.userRecords[userId])
   }
 
   saveRecords() {
@@ -66,24 +112,239 @@ export class RollPigPlugin extends plugin {
     }
   }
 
+  loadConfig() {
+    const configDir = path.join(__dirname, 'config')
+    const defaultPath = path.join(configDir, 'config.default.yaml')
+    const userPath = path.join(configDir, 'config.yaml')
+    let config = { ...DEFAULT_CONFIG }
+    try {
+      if (!fs.existsSync(userPath)) {
+        if (!fs.existsSync(configDir)) fs.mkdirSync(configDir, { recursive: true })
+        if (fs.existsSync(defaultPath)) {
+          fs.copyFileSync(defaultPath, userPath)
+        } else {
+          fs.writeFileSync(userPath, yaml.stringify(DEFAULT_CONFIG))
+        }
+      }
+      config = { ...config, ...(yaml.parse(fs.readFileSync(userPath, 'utf-8')) || {}) }
+    } catch (err) {
+      logger.error('[今天是什么小猪] 配置加载失败，使用默认配置:', err)
+    }
+    return config
+  }
+
+  saveConfig() {
+    try {
+      const configDir = path.join(__dirname, 'config')
+      if (!fs.existsSync(configDir)) fs.mkdirSync(configDir, { recursive: true })
+      fs.writeFileSync(path.join(configDir, 'config.yaml'), yaml.stringify(this.config))
+    } catch (err) {
+      logger.error('[今天是什么小猪] 配置保存失败:', err)
+    }
+  }
+
+  /** 是否官方QQBot适配器（QQ群/私聊/QQ频道） */
+  isQQBot(e) {
+    const platform = String(e.platform || '')
+    return platform.startsWith('QQ') || platform.startsWith('guild')
+  }
+
+  /** 今日小猪回复按钮：跳转猪圈/再抽 */
+  drawButtons() {
+    if (typeof segment.button !== 'function') return null
+    return segment.button([
+      { text: '👑 猪圈', input: '#猪圈' },
+      { text: '🐷 今日猪猪', input: '#今日猪猪' }
+    ])
+  }
+
+  /** 猪圈回复按钮：方便其他群友直接抽取/查看自己的图鉴 */
+  penButtons() {
+    if (typeof segment.button !== 'function') return null
+    return segment.button([
+      { text: '🐷 今日猪猪', input: '#今日猪猪' },
+      { text: '📖 我的图鉴', input: '#我的图鉴' }
+    ])
+  }
+
   async todayPig(e) {
     const userId = e.user_id.toString()
     const today = new Date().toLocaleDateString('zh-CN')
-    
-    if (this.userRecords[userId]?.date === today) {
-      const pigId = this.userRecords[userId].pig_id
-      const pig = this.pigData.find(p => p.id === pigId)
+    let pig, count, hint
+
+    const record = this.userRecords[userId]
+    if (record?.date === today) {
+      pig = this.pigData.find(p => p.id === record.pig_id)
       if (pig) {
-        await this.sendPigCard(e, pig)
+        count = record.pigs[pig.id] || 1
+        hint = '今天已经抽过啦，这是你的今日小猪~'
+        await this.replyDraw(e, pig, count, hint)
         return true
       }
     }
 
-    const pig = this.pigData[Math.floor(Math.random() * this.pigData.length)]
-    this.userRecords[userId] = { pig_id: pig.id, date: today }
+    pig = this.pigData[Math.floor(Math.random() * this.pigData.length)]
+    const rec = this.getUserRecord(userId)
+    rec.date = today
+    rec.pig_id = pig.id
+    rec.pigs[pig.id] = (rec.pigs[pig.id] || 0) + 1
+    rec.total = (rec.total || 0) + 1
+    count = rec.pigs[pig.id]
+    hint = count === 1
+      ? '🎉 抓到一只新猪猪啦！'
+      : `🔁 第 ${count} 次抽到这只猪猪，升级 Lv.${count}！`
     this.saveRecords()
-    
-    await this.sendPigCard(e, pig)
+
+    await this.replyDraw(e, pig, count, hint)
+    return true
+  }
+
+  /** 回复抽卡结果：Markdown模式（官方QQBot）或普通图片模式 */
+  async replyDraw(e, pig, count, hint) {
+    const title = count > 1 ? `${pig.name} Lv.${count}` : pig.name
+    const imagePath = this.findPigImage(pig.id)
+    const buttons = this.drawButtons()
+
+    if (this.config.markdown && this.isQQBot(e) && imagePath) {
+      const quote = pig.analysis.split('\n').map(line => `> ${line}`).join('\n')
+      const msg = [
+        segment.at(e.user_id),
+        `\n${hint}\n`,
+        segment.image(`file:///${imagePath}`),
+        `\n**【${title}】**\n${pig.description}\n${quote}`
+      ]
+      if (buttons) msg.push(buttons)
+      await e.reply(msg)
+      return
+    }
+
+    if (!imagePath) {
+      await e.reply(`${hint}\n【${title}】\n${pig.description}\n${pig.analysis}`)
+      return
+    }
+
+    await e.reply([
+      segment.image(`file:///${imagePath}`),
+      `\n${hint}\n【${title}】\n${pig.description}\n\n${pig.analysis}`
+    ])
+  }
+
+  /** 猪圈统计：已收集数、收集率、本命猪（抽到次数最多的猪猪） */
+  penStats(userId) {
+    const record = this.userRecords[userId]
+    const collected = record
+      ? Object.values(record.pigs || {}).filter(n => n > 0).length
+      : 0
+    const total = this.pigData.length
+    const percent = total ? (collected / total * 100).toFixed(2) : '0.00'
+
+    let bestPig = null
+    let bestCount = 0
+    for (const [pigId, count] of Object.entries(record?.pigs || {})) {
+      if (count > bestCount) {
+        const pig = this.pigData.find(p => p.id === pigId)
+        // 图鉴中已移除的猪猪不计入本命猪
+        if (pig) {
+          bestPig = pig
+          bestCount = count
+        }
+      }
+    }
+    return { collected, total, percent, bestPig, bestCount }
+  }
+
+  /** #猪圈：查看个人猪猪图鉴与收集进度，可@查看他人 */
+  async pigPen(e) {
+    let userId = e.user_id.toString()
+    let isSelf = true
+
+    // 官方QQBot群内命令往往需要@Bot才能触发，@Bot不能被当成代查目标：
+    // 群聊路径适配器已把@本Bot归入atBot/atme而不写入e.at，这里再兜底比对self_id；
+    // 频道(guild)每条命令都必须@Bot且@段格式与普通成员一致，无法区分，直接忽略代查
+    let at = e.at ? String(e.at) : null
+    if (at && at === String(e.self_id)) at = null
+    if (String(e.platform || '').startsWith('guild')) at = null
+
+    if (at && at !== userId) {
+      userId = at
+      isSelf = false
+    }
+
+    const { collected, total, percent, bestPig, bestCount } = this.penStats(userId)
+
+    if (!collected) {
+      await e.reply(isSelf
+        ? '你的猪圈还空空如也，快发送 #今日小猪 抽一只猪猪吧~'
+        : 'TA的猪圈还空空如也，让TA发送 #今日小猪 抽一只猪猪吧~')
+      return true
+    }
+
+    // 头部文本统计：【@xxx 的猪圈】+ 已收集/收集率/本命猪
+    const stats = [
+      `📦 已收集: ${collected} / ${total}`,
+      `⭐ 收集率: ${percent}%`
+    ]
+    if (bestPig) {
+      stats.push(`🐷 本命猪: 【${bestPig.name}】Lv.${bestCount}（抓到过${bestCount}次）`)
+    }
+
+    try {
+      const image = await this.renderPen(userId)
+      if (!image) throw new Error('渲染器返回空图片')
+
+      const msg = [`【`, segment.at(userId), ` 的猪圈】\n${stats.join('\n')}\n`, image]
+      const buttons = this.penButtons()
+      if (this.config.markdown && this.isQQBot(e) && buttons) msg.push(buttons)
+      await e.reply(msg)
+    } catch (err) {
+      logger.error('[猪圈] 渲染失败:', err)
+      await e.reply([`【`, segment.at(userId), ` 的猪圈】\n${stats.join('\n')}`])
+    }
+    return true
+  }
+
+  /** 渲染猪猪图鉴图片 */
+  async renderPen(userId) {
+    const record = this.migrateRecord(this.userRecords[userId] || { pigs: {}, total: 0 })
+    const pigs = this.pigData.map(p => {
+      const level = record.pigs[p.id] || 0
+      const imagePath = this.findPigImage(p.id)
+      return {
+        name: p.name,
+        level,
+        unlocked: level > 0,
+        image: pathToFileURL(imagePath || path.join(__dirname, 'resource', 'image', 'pig.png')).href
+      }
+    })
+    const total = pigs.length
+    const collected = pigs.filter(p => p.unlocked).length
+
+    // 根据本地猪猪数量自适应列数与画布宽度，扩充图鉴库时无需调整模板
+    const columns = Math.min(14, Math.max(4, Math.ceil(Math.sqrt(total * 0.9))))
+    const penWidth = columns * 150 + 80
+    const titleSize = Math.min(88, Math.max(48, Math.round(penWidth / 10)))
+
+    return await puppeteer.screenshot('rollpig-pen', {
+      tplFile: path.join(__dirname, 'resource', 'pen.html'),
+      saveId: 'rollpig-pen',
+      imgType: 'png',
+      collected,
+      total,
+      percent: total ? (collected / total * 100).toFixed(2) : '0.00',
+      totalDraws: record.total || 0,
+      columns,
+      penWidth,
+      titleSize,
+      pigs
+    })
+  }
+
+  /** #猪猪设置markdown：管理员切换 Markdown回复 */
+  async setMarkdown(e) {
+    const on = /开启|on/i.test(e.msg)
+    this.config.markdown = on
+    this.saveConfig()
+    await e.reply(`Markdown回复已${on ? '开启' : '关闭'}${on ? '，官方QQBot将使用Markdown格式回复' : ''}`)
     return true
   }
 
@@ -113,7 +374,7 @@ export class RollPigPlugin extends plugin {
           const idx = Math.floor(Math.random() * available.length)
           selected.push(available.splice(idx, 1)[0])
         }
-        
+
         const msgs = selected.map(pig => {
           const imageUrl = `https://pighub.top/data/${pig.thumbnail.split('/').pop()}`
           return {
@@ -145,7 +406,7 @@ export class RollPigPlugin extends plugin {
         return true
       }
 
-      const found = this.pigCache.filter(pig => 
+      const found = this.pigCache.filter(pig =>
         pig.title.toLowerCase().includes(keyword)
       )
 
@@ -189,24 +450,10 @@ export class RollPigPlugin extends plugin {
     }
   }
 
-  async sendPigCard(e, pig) {
-    const imagePath = this.findPigImage(pig.id)
-    if (!imagePath) {
-      await e.reply(`${pig.name}\n${pig.description}\n${pig.analysis}`)
-      return
-    }
-
-    const msg = [
-      segment.image(`file:///${imagePath}`),
-      `\n【${pig.name}】\n${pig.description}\n\n${pig.analysis}`
-    ]
-    await e.reply(msg)
-  }
-
   findPigImage(pigId) {
     const imageDir = path.join(__dirname, 'resource', 'image')
     const extensions = ['png', 'jpg', 'jpeg', 'gif', 'webp']
-    
+
     for (const ext of extensions) {
       const imagePath = path.join(imageDir, `${pigId}.${ext}`)
       if (fs.existsSync(imagePath)) {
