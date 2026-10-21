@@ -26,7 +26,7 @@ export class RollPigPlugin extends plugin {
       priority: 5000,
       rule: [
         {
-          reg: '^#?(今日小猪|今天是什么小猪|本日小猪|当日小猪)$',
+          reg: '^#?(今日小猪|今天是什么小猪|本日小猪|当日小猪|今日猪猪)$',
           fnc: 'todayPig'
         },
         {
@@ -38,7 +38,7 @@ export class RollPigPlugin extends plugin {
           fnc: 'findPig'
         },
         {
-          reg: '^#?(猪圈|猪猪图鉴|我的猪圈|我的图鉴)\\s*$',
+          reg: '^#?(猪圈|猪猪图鉴|我的猪圈)\\s*$',
           fnc: 'pigPen'
         },
         {
@@ -163,7 +163,7 @@ export class RollPigPlugin extends plugin {
     if (typeof segment.button !== 'function') return null
     return segment.button([
       { text: '🐷 今日猪猪', input: '#今日猪猪' },
-      { text: '📖 我的图鉴', input: '#我的图鉴' }
+      { text: '📖 我的猪圈', input: '#我的猪圈' }
     ])
   }
 
