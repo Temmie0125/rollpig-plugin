@@ -457,7 +457,7 @@ function openViewer(p) {
     <div class="view-row"><label>简述</label><div class="val">${esc(p.description) || '—'}</div></div>
     <div class="view-row"><label>分析</label><div class="val">${esc(p.analysis) || '—'}</div></div>
     <div class="form-row src-tag">官方图鉴条目为只读；如需覆盖其显示，请新建同 id 猪猪并在冲突确认中选择覆盖</div>
-  `, [{ text: '关闭', cls: 'primary' }])
+  `, [{ text: '关闭', cls: 'primary', onClick: closeModal }])
 }
 
 // 删除面板条目：覆盖型删除后官方显示自动恢复
