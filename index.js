@@ -6,6 +6,7 @@ import path from 'path'
 import { fileURLToPath, pathToFileURL } from 'url'
 import yaml from 'yaml'
 import puppeteer from '../../lib/puppeteer/puppeteer.js'
+import { getMergedPigs, findPigImageAny } from './lib/custom-store.js'
 
 const require = createRequire(import.meta.url)
 const __filename = fileURLToPath(import.meta.url)
@@ -14,7 +15,11 @@ const __dirname = path.dirname(__filename)
 /** 默认配置，与 config/config.default.yaml 保持一致 */
 const DEFAULT_CONFIG = {
   /** Markdown回复：官方QQBot 使用 Markdown 格式回复（@用户 + 引用块 + 按钮） */
-  markdown: false
+  markdown: false,
+  /** VLM文案生成（面板用）：OpenAI 兼容接口地址 / Key / 视觉模型名 */
+  vlmApiUrl: '',
+  vlmApiKey: '',
+  vlmModel: ''
 }
 
 export class RollPigPlugin extends plugin {
@@ -58,6 +63,11 @@ export class RollPigPlugin extends plugin {
 
     // 每日0点刷新PigHub缓存，由宿主loader统一调度；仅内存缓存，不会写入本地图鉴库与用户记录
     this.task = { name: 'PigHub数据刷新', cron: '0 0 * * *', fnc: () => this.refreshPigHub() }
+  }
+
+  /** 官方 + 自定义合并后的图鉴池：id 冲突时自定义覆盖显示；resource/custom/ 有改动时自动重载 */
+  mergedPigs() {
+    return getMergedPigs(this.pigData)
   }
 
   loadData() {
@@ -170,11 +180,12 @@ export class RollPigPlugin extends plugin {
   async todayPig(e) {
     const userId = e.user_id.toString()
     const today = new Date().toLocaleDateString('zh-CN')
+    const pigs = this.mergedPigs()
     let pig, count, hint
 
     const record = this.userRecords[userId]
     if (record?.date === today) {
-      pig = this.pigData.find(p => p.id === record.pig_id)
+      pig = pigs.find(p => p.id === record.pig_id)
       if (pig) {
         count = record.pigs[pig.id] || 1
         hint = '今天已经抽过啦，这是你的今日小猪~'
@@ -183,7 +194,7 @@ export class RollPigPlugin extends plugin {
       }
     }
 
-    pig = this.pigData[Math.floor(Math.random() * this.pigData.length)]
+    pig = pigs[Math.floor(Math.random() * pigs.length)]
     const rec = this.getUserRecord(userId)
     rec.date = today
     rec.pig_id = pig.id
@@ -202,7 +213,7 @@ export class RollPigPlugin extends plugin {
   /** 回复抽卡结果：Markdown模式（官方QQBot）或普通图片模式 */
   async replyDraw(e, pig, count, hint) {
     const title = count > 1 ? `${pig.name} Lv.${count}` : pig.name
-    const imagePath = this.findPigImage(pig.id)
+    const imagePath = findPigImageAny(pig.id)
     const buttons = this.drawButtons()
 
     if (this.config.markdown && this.isQQBot(e) && imagePath) {
@@ -235,14 +246,15 @@ export class RollPigPlugin extends plugin {
     const collected = record
       ? Object.values(record.pigs || {}).filter(n => n > 0).length
       : 0
-    const total = this.pigData.length
+    const pigs = this.mergedPigs()
+    const total = pigs.length
     const percent = total ? (collected / total * 100).toFixed(2) : '0.00'
 
     let bestPig = null
     let bestCount = 0
     for (const [pigId, count] of Object.entries(record?.pigs || {})) {
       if (count > bestCount) {
-        const pig = this.pigData.find(p => p.id === pigId)
+        const pig = pigs.find(p => p.id === pigId)
         // 图鉴中已移除的猪猪不计入本命猪
         if (pig) {
           bestPig = pig
@@ -344,9 +356,9 @@ export class RollPigPlugin extends plugin {
   /** 渲染猪猪图鉴图片 */
   async renderPen(userId) {
     const record = this.migrateRecord(this.userRecords[userId] || { pigs: {}, total: 0 })
-    const pigs = this.pigData.map(p => {
+    const pigs = this.mergedPigs().map(p => {
       const level = record.pigs[p.id] || 0
-      const imagePath = this.findPigImage(p.id)
+      const imagePath = findPigImageAny(p.id)
       return {
         name: p.name,
         level,
@@ -538,18 +550,5 @@ export class RollPigPlugin extends plugin {
     })
 
     return this._pigHubRefreshing
-  }
-
-  findPigImage(pigId) {
-    const imageDir = path.join(__dirname, 'resource', 'image')
-    const extensions = ['png', 'jpg', 'jpeg', 'gif', 'webp']
-
-    for (const ext of extensions) {
-      const imagePath = path.join(imageDir, `${pigId}.${ext}`)
-      if (fs.existsSync(imagePath)) {
-        return imagePath
-      }
-    }
-    return null
   }
 }

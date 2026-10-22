@@ -9,6 +9,8 @@
 - **随机小猪**: 从 PigHub 随机获取猪猪图 🐖
 - **找猪**: 从 PigHub 模糊搜索猪猪图 🐖
 - **Markdown回复**: 可选开启，官方QQBot 下按 Markdown 格式回复并附加按钮 🐖
+- **自定义图鉴**: 将扩展数据丢进 `resource/custom/` 即可扩展本地猪猪图鉴（新增猪猪进入抽取池；与官方 id 冲突时仅覆盖显示，不影响收集进度）🐖
+- **管理面板**: QWA / 锅巴 双宿主可视化面板，上传图片与文案、重复性校验、AI 生成文案 🐖
 
 ## 📦 安装
 
@@ -58,21 +60,60 @@ git clone https://github.com/ZuBeri05/rollpig-plugin.git
 ```
 yunzai-plugin-rollpig/
 ├── index.js                    # 插件主文件
+├── guoba.support.js            # 锅巴配置页（Markdown 开关 + VLM 配置）
 ├── package.json                # 包配置
 ├── README.md                   # 说明文档
+├── lib/
+│   ├── custom-store.js         # 自定义图鉴存储/合并/查重
+│   └── vlm.js                  # VLM 文案生成（OpenAI 兼容）
+├── webadapter/
+│   ├── index.js                # 管理面板 API（QWA + 锅巴双宿主）
+│   └── panel.html              # 管理面板页面
 ├── config/
 │   ├── config.default.yaml     # 默认配置（勿改）
 │   └── config.yaml             # 用户配置（自动生成，可修改）
 ├── data/                       # 数据目录（自动生成）
 │   └── records.json            # 用户记录（含每种猪猪的抽到次数）
 └── resource/                   # 资源目录
-    ├── pig.json                # 小猪信息
+    ├── pig.json                # 官方小猪信息
     ├── pen.html                # 猪圈图鉴渲染模板
-    └── image/                  # 小猪图片
-        └── *.png
+    ├── image/                  # 官方小猪图片
+    │   └── *.{png,jpg,...}
+    └── custom/                 # 自定义图鉴目录（gitignore，可整目录分发）
+        ├── *.json              # 扩展包（任意命名，丢入即读）
+        ├── custom-pigs.json    # 面板写入的条目（同 id 时优先于扩展包）
+        └── image/              # 自定义猪猪图片
+            └── {id}.{扩展名}
 ```
 
-## 🐷 新增小猪
+## 🐷 自定义图鉴扩展
+
+把扩展数据放进 `resource/custom/` 即可，无需改任何代码，保存后自动生效：
+
+- **扩展包**：`resource/custom/` 下任意 `*.json`，格式与 `pig.json` 相同的数组：
+  ```json
+  [
+    { "id": "my-pig", "name": "我的猪猪", "description": "一句话简述", "analysis": "第二人称人格分析" }
+  ]
+  ```
+- **图片**：放到 `resource/custom/image/`，文件名为 `{id}.{扩展名}`（png/jpg/jpeg/gif/webp）
+- **合并规则**：
+  - id 与官方相同 → 仅覆盖显示（名称/文案/图片），收集进度按 id 记录不受影响
+  - id 是新的 → 追加进图鉴并进入「今日小猪」抽取池，收集率分母随之扩大
+  - 多个 json 同 id 时按文件名顺序后者覆盖前者；面板的 `custom-pigs.json` 最后合并、优先级最高
+- 冲突只影响显示，不影响图鉴收集进度
+
+## 🖥️ 管理面板
+
+安装 [QQBot-Web-Adapter](https://github.com/Temmie0125/QQBot-Web-Adapter) 或锅巴（Guoba）后自动出现「🐷 猪猪图鉴管理」页面，两个宿主共用同一份页面：
+
+- 可视化浏览全部官方 + 自定义猪猪（来源徽标、无图标记、重复提示角标、搜索过滤）
+- 新建/编辑猪猪：分片上传图片（≤20MB）、填写文案；对官方条目保存即覆盖其显示
+- 重复性校验：提交时检查 **图片 MD5 / 名称 / id** 三类重复并列出明细，确认后可选择覆盖保存（不强制拒绝）
+- 删除面板条目：覆盖型条目删除后自动恢复官方显示（扩展包条目请直接删除对应 json）
+- ✨ AI 生成文案：根据名称、图片与可选备注，自动生成 description 与 analysis（需先在锅巴配置页填写 VLM 配置）
+
+## 🐷 新增小猪（改官方库）
 
 ### 1. 编辑 pig.json
 
@@ -98,6 +139,11 @@ yunzai-plugin-rollpig/
 | 配置项 | 默认值 | 说明 |
 | --- | --- | --- |
 | `markdown` | `false` | **Markdown回复**：开启后「今日小猪」「猪圈」按官方QQBot支持的Markdown方式回复 |
+| `vlmApiUrl` | 空 | **VLM API 地址**：OpenAI 兼容接口（如 `https://api.example.com/v1`），供面板 AI 生成文案 |
+| `vlmApiKey` | 空 | **VLM API Key** |
+| `vlmModel` | 空 | **VLM 视觉模型**：需支持图片输入（如 `qwen-vl-plus` / `gpt-4o-mini`） |
+
+- 三项 VLM 字段也可在锅巴「今天是什么小猪」配置页填写，保存后面板「✨ AI生成文案」即刻可用
 
 - 开启 Markdown回复 后，「今日小猪」的回复格式为：**@用户 → 第几次抽到提示 → 猪猪图片 → 名称 → 简述 → 详细描述（引用注释块）→ 按钮（👑猪圈 / 🐷今日猪猪）**；「猪圈」的回复格式为：**【@用户 的猪圈】→ 📦已收集 → ⭐收集率 → 🐷本命猪（抽到次数最多的猪猪）→ 图鉴图片 → 按钮（🐷今日猪猪 / 📖我的图鉴）**
 - 仅官方QQBot适配器（QQ群/QQ私聊/QQ频道）生效；其他平台自动回退为普通图片回复

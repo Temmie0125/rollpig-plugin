@@ -3,3 +3,4 @@ data/
 config/config.yaml
 *.log
 .DS_Store
+resource/custom/

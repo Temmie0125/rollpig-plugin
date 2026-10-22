@@ -1,8 +1,18 @@
 # 今天是什么小猪 插件配置
 # 首次运行时会自动将本文件复制为 config/config.yaml，请在 config.yaml 中修改
 # 管理员也可直接发送 #猪猪设置markdown开启 / #猪猪设置markdown关闭 快捷切换
+# 以上配置同样可在锅巴（Guoba）「今天是什么小猪」配置页修改
 
 # Markdown回复：开启后「今日小猪」「猪圈」将按官方QQBot支持的Markdown方式回复
 # 格式：@用户 → 第几次抽到提示 → 猪猪图片 → 名称 → 简述 → 详细描述（引用注释块）→ 按钮（猪圈 / 今日猪猪）
 # 仅官方QQBot适配器（QQ群/QQ私聊/QQ频道）生效，其他平台自动回退为普通图片回复
 markdown: false
+
+# VLM文案生成：管理面板「猪猪图鉴管理」中「AI生成文案」所用的视觉模型
+# 协议为 OpenAI 兼容 chat/completions；三项全部填写后才可用
+# vlmApiUrl: API 地址，如 https://api.example.com/v1
+# vlmApiKey: API Key
+# vlmModel:  支持图片输入的模型名，如 qwen-vl-plus / gpt-4o-mini
+vlmApiUrl: ''
+vlmApiKey: ''
+vlmModel: ''

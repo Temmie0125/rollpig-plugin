@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>猪猪图鉴管理</title>
+<script>
+// 主题同步：读 qwa_theme（auto|light|dark）+ 监听主面板 theme-changed 广播，切换 data-theme
+;(function () {
+  var KEY = 'qwa_theme'
+  function apply() {
+    var m = localStorage.getItem(KEY) || 'auto'
+    var dark = m === 'dark' || (m === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches)
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light'
+  }
+  apply()
+  addEventListener('message', function (ev) {
+    if (ev.data && ev.data.type === 'theme-changed') {
+      try { localStorage.setItem(KEY, ev.data.mode) } catch (e) {}
+      apply()
+    }
+  })
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () {
+    if ((localStorage.getItem(KEY) || 'auto') === 'auto') apply()
+  })
+})()
+</script>
+<style>
+:root {
+  --bg: #f2f4f7; --panel: #ffffff; --panel2: #eef0f4; --text: #1c1e21; --muted: #6b7280;
+  --border: #e2e5ea; --accent: #4f7cff; --accent-weak: rgba(79,124,255,.1);
+  --danger: #e5484d; --danger-weak: rgba(229,72,77,.1); --ok: #2f9e6e;
+  --warn: #b8860b; --warn-weak: rgba(184,134,11,.12);
+  --shadow: 0 6px 24px rgba(0,0,0,.1); --radius: 10px;
+}
+html[data-theme="dark"] {
+  --bg: #14161a; --panel: #1d2026; --panel2: #262a32; --text: #e8eaed; --muted: #9aa1ac;
+  --border: #30343d; --accent: #6b93ff; --accent-weak: rgba(107,147,255,.16);
+  --danger: #ff6369; --danger-weak: rgba(255,99,105,.16); --ok: #4cc38a;
+  --warn: #e0b04c; --warn-weak: rgba(224,176,76,.16);
+  --shadow: 0 6px 24px rgba(0,0,0,.5);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  font-size: 14px; display: flex; flex-direction: column; overflow: hidden;
+}
+button {
+  font: inherit; color: inherit; background: var(--panel2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 6px 12px; cursor: pointer; transition: filter .15s, background .15s;
+}
+button:hover { filter: brightness(.96); }
+html[data-theme="dark"] button:hover { filter: brightness(1.2); }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+button.danger { background: var(--danger-weak); border-color: transparent; color: var(--danger); }
+button.ghost { background: transparent; }
+button:disabled { opacity: .5; cursor: not-allowed; }
+input, textarea {
+  font: inherit; color: var(--text); background: var(--panel2);
+  border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; outline: none; min-width: 0;
+  width: 100%;
+}
+input:focus, textarea:focus { border-color: var(--accent); }
+textarea { resize: vertical; line-height: 1.5; }
+
+/* ===== 顶栏 ===== */
+.topbar {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 12px 16px; background: var(--panel); border-bottom: 1px solid var(--border);
+}
+.topbar h1 { font-size: 16px; white-space: nowrap; }
+.stats { display: flex; gap: 6px; flex-wrap: wrap; }
+.stat {
+  font-size: 12px; color: var(--muted); background: var(--panel2);
+  border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px; white-space: nowrap;
+}
+.stat b { color: var(--text); font-weight: 600; }
+.topbar .spacer { flex: 1; }
+#search { width: 200px; }
+#vlm-hint { font-size: 12px; color: var(--warn); cursor: pointer; }
+
+/* ===== 卡片区 ===== */
+main { flex: 1; overflow-y: auto; padding: 16px; }
+.grid {
+  display: grid; gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+}
+.card {
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+  overflow: hidden; cursor: pointer; transition: box-shadow .15s, transform .15s;
+  display: flex; flex-direction: column;
+}
+.card:hover { box-shadow: var(--shadow); transform: translateY(-1px); }
+.thumb {
+  height: 130px; background: var(--panel2); display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+}
+.thumb img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.thumb .noimg { font-size: 34px; opacity: .4; }
+.card .info { padding: 8px 10px 10px; }
+.card .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card .pid { font-size: 12px; color: var(--muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card .flags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px; }
+.badge {
+  font-size: 11px; border-radius: 4px; padding: 1px 6px; white-space: nowrap;
+  background: var(--panel2); color: var(--muted); border: 1px solid var(--border);
+}
+.badge.custom { background: var(--accent-weak); color: var(--accent); border-color: transparent; }
+.badge.override { background: var(--warn-weak); color: var(--warn); border-color: transparent; }
+.badge.conflict { background: var(--warn-weak); color: var(--warn); border-color: transparent; cursor: help; }
+.empty { text-align: center; color: var(--muted); padding: 60px 0; }
+
+/* ===== 弹窗 ===== */
+.mask {
+  position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 100;
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+}
+.modal {
+  background: var(--panel); border-radius: 12px; box-shadow: var(--shadow);
+  width: 520px; max-width: 100%; max-height: 90vh; display: flex; flex-direction: column;
+}
+.modal.wide { width: 640px; }
+.m-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px; border-bottom: 1px solid var(--border); font-weight: 600;
+}
+.m-head .close { border: none; background: transparent; font-size: 15px; padding: 2px 6px; }
+.m-body { padding: 14px 16px; overflow-y: auto; }
+.m-foot {
+  display: flex; gap: 8px; justify-content: flex-end; align-items: center;
+  padding: 12px 16px; border-top: 1px solid var(--border); flex-wrap: wrap;
+}
+.m-foot .left { margin-right: auto; display: flex; gap: 8px; }
+
+/* ===== 编辑器 ===== */
+.form-row { margin-bottom: 10px; }
+.form-row label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+.img-pick {
+  border: 1px dashed var(--border); border-radius: var(--radius); background: var(--panel2);
+  min-height: 150px; display: flex; align-items: center; justify-content: center; flex-direction: column;
+  gap: 6px; cursor: pointer; text-align: center; color: var(--muted); margin-bottom: 12px;
+  overflow: hidden; padding: 8px;
+}
+.img-pick:hover { border-color: var(--accent); }
+.img-pick img { max-width: 100%; max-height: 220px; object-fit: contain; }
+.img-pick .hint { font-size: 12px; }
+.editor-conflicts { margin-bottom: 10px; }
+.conflict-item {
+  font-size: 12px; color: var(--warn); background: var(--warn-weak);
+  border-radius: 6px; padding: 5px 8px; margin-bottom: 4px; line-height: 1.5;
+}
+.ai-row { display: flex; gap: 8px; align-items: stretch; margin-bottom: 10px; }
+.ai-row textarea { flex: 1; min-height: 52px; }
+.src-tag { font-size: 11px; color: var(--muted); }
+
+/* ===== toast ===== */
+#toast-box {
+  position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+  display: flex; flex-direction: column; gap: 8px; z-index: 200; align-items: center; pointer-events: none;
+}
+.toast {
+  background: var(--panel); color: var(--text); border: 1px solid var(--border);
+  border-left: 3px solid var(--ok); border-radius: 8px; padding: 8px 14px; box-shadow: var(--shadow);
+  max-width: 80vw; font-size: 13px;
+}
+.toast.err { border-left-color: var(--danger); }
+
+@media (max-width: 768px) {
+  #search { width: 100%; }
+  .form-grid { grid-template-columns: 1fr; }
+  .grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>🐷 猪猪图鉴管理</h1>
+  <div class="stats" id="stats"></div>
+  <div class="spacer"></div>
+  <span id="vlm-hint" style="display:none" title="点击打开说明">⚠ VLM 未配置，AI 生成文案不可用</span>
+  <input id="search" placeholder="搜索名称 / id…" />
+  <button class="primary" id="btn-new">＋ 新建猪猪</button>
+</div>
+
+<main>
+  <div class="grid" id="grid"></div>
+  <div class="empty" id="empty" style="display:none">没有匹配的猪猪</div>
+</main>
+
+<div id="toast-box"></div>
+
+<script>
+'use strict'
+// ===== 宿主自适应 API 前缀：QWA 注入 __webBase（+ '/api'），锅巴注入 __apiBase + token =====
+const Q = new URLSearchParams(location.search)
+const TOKEN = Q.get('token') || ''
+let API_ROOT = Q.get('__apiBase')
+if (!API_ROOT) {
+  const wb = Q.get('__webBase')
+  API_ROOT = wb ? wb.replace(/\/+$/, '') + '/api' : '/qqbot-web/api'
+}
+const API = API_ROOT.replace(/\/+$/, '') + '/rollpig'
+const imgURL = (id, v) => `${API}/image?id=${encodeURIComponent(id)}&v=${encodeURIComponent(v || '')}`
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+const PIG_ID_RE = /^[A-Za-z0-9_-]{1,64}$/
+
+async function req(method, path, body) {
+  const headers = {}
+  if (TOKEN) headers['guoba-access-token'] = TOKEN
+  if (body !== undefined) headers['Content-Type'] = 'application/json'
+  let res
+  try {
+    res = await fetch(API + path, { method, headers, body: body !== undefined ? JSON.stringify(body) : undefined })
+  } catch (e) {
+    throw new Error('网络请求失败')
+  }
+  let data = {}
+  try { data = await res.json() } catch (e) {}
+  if (data.ok === false) throw new Error(data.error || '操作失败')
+  if (!res.ok) throw new Error(data.error || `请求失败(${res.status})`)
+  return data
+}
+
+function toast(msg, isErr) {
+  const box = document.getElementById('toast-box')
+  const el = document.createElement('div')
+  el.className = 'toast' + (isErr ? ' err' : '')
+  el.textContent = msg
+  box.appendChild(el)
+  setTimeout(() => el.remove(), isErr ? 6000 : 3200)
+}
+
+// ===== 弹窗 =====
+let modalClose = null
+function openModal(title, bodyHTML, buttons, opts = {}) {
+  closeModal()
+  const mask = document.createElement('div')
+  mask.className = 'mask'
+  const btnsHTML = (buttons || []).map((b, i) =>
+    `<button data-i="${i}" class="${b.cls || ''}">${esc(b.text)}</button>`).join('')
+  mask.innerHTML = `<div class="modal${opts.wide ? ' wide' : ''}">
+    <div class="m-head"><span>${esc(title)}</span><button class="close">✕</button></div>
+    <div class="m-body">${bodyHTML}</div>
+    ${btnsHTML ? `<div class="m-foot">${btnsHTML}</div>` : ''}
+  </div>`
+  mask.addEventListener('click', e => { if (e.target === mask) closeModal() })
+  mask.querySelector('.close').onclick = closeModal
+  ;(buttons || []).forEach((b, i) => {
+    mask.querySelector(`.m-foot [data-i="${i}"]`).onclick = () => b.onClick?.(mask)
+  })
+  document.body.appendChild(mask)
+  modalClose = closeModal
+  return mask
+}
+function closeModal() {
+  document.querySelectorAll('.mask').forEach(m => m.remove())
+  modalClose = null
+}
+function confirmBox(html, dangerBtn = '删除', btnCls = 'danger') {
+  return new Promise(resolve => {
+    openModal('确认操作', `<div style="line-height:1.7">${html}</div>`, [
+      { text: '取消', onClick: () => { closeModal(); resolve(false) } },
+      { text: dangerBtn, cls: btnCls, onClick: () => { closeModal(); resolve(true) } },
+    ])
+  })
+}
+
+// ===== 状态 =====
+let pigs = []
+let stats = { total: 0, official: 0, custom: 0, override: 0 }
+let vlmConfigured = false
+let search = ''
+
+// 编辑器状态
+const editor = {
+  mode: 'new',          // new | edit
+  id: '',
+  uploadId: '',         // 已选新图片的分片会话 id
+  imageDirty: false,    // 是否换了新图
+  objectURL: '',        // 本地预览
+  busy: false,
+}
+
+const $ = id => document.getElementById(id)
+
+async function loadPigs() {
+  try {
+    const d = await req('GET', '/pigs')
+    pigs = d.items
+    stats = d.stats
+    vlmConfigured = d.vlmConfigured
+    $('vlm-hint').style.display = vlmConfigured ? 'none' : ''
+    renderStats()
+    renderGrid()
+  } catch (e) {
+    toast(e.message, true)
+  }
+}
+
+function renderStats() {
+  $('stats').innerHTML = `
+    <span class="stat">共 <b>${stats.total}</b></span>
+    <span class="stat">官方 <b>${stats.official}</b></span>
+    <span class="stat">自定义 <b>${stats.custom}</b></span>
+    <span class="stat">覆盖官方 <b>${stats.override}</b></span>`
+}
+
+function renderGrid() {
+  const q = search.trim().toLowerCase()
+  const list = q
+    ? pigs.filter(p => p.name.toLowerCase().includes(q) || p.id.toLowerCase().includes(q))
+    : pigs
+  $('empty').style.display = list.length ? 'none' : ''
+  $('grid').innerHTML = list.map(p => {
+    const flags = []
+    if (p.source === 'custom') flags.push('<span class="badge custom">自定义</span>')
+    if (p.source === 'override') flags.push('<span class="badge override">覆盖官方</span>')
+    if (!p.hasImage) flags.push('<span class="badge">无图</span>')
+    if (p.conflicts?.length) flags.push(`<span class="badge conflict" title="${esc(p.conflicts.map(c => c.detail).join('\n'))}">⚠ ${p.conflicts.length} 处重复</span>`)
+    return `<div class="card" data-id="${esc(p.id)}">
+      <div class="thumb">${p.hasImage
+        ? `<img loading="lazy" src="${esc(imgURL(p.id, p.imageVersion))}" alt="">`
+        : '<span class="noimg">🐷</span>'}</div>
+      <div class="info">
+        <div class="name">${esc(p.name)}</div>
+        <div class="pid">${esc(p.id)}${p.file ? ` · ${esc(p.file)}` : ''}</div>
+        <div class="flags">${flags.join('')}</div>
+      </div>
+    </div>`
+  }).join('')
+  $('grid').querySelectorAll('.card').forEach(el => {
+    el.onclick = () => openEditor(el.dataset.id)
+  })
+}
+
+$('search').addEventListener('input', e => { search = e.target.value; renderGrid() })
+$('btn-new').addEventListener('click', () => openEditor(null))
+$('vlm-hint').addEventListener('click', () =>
+  toast('请在锅巴「今天是什么小猪」配置页填写 VLM 的 API 地址 / API Key / 视觉模型后使用 AI 生成文案'))
+
+// ===== 编辑器 =====
+
+function editorHTML() {
+  const isEdit = editor.mode === 'edit'
+  const p = isEdit ? pigs.find(x => x.id === editor.id) : null
+  const fileNote = p ? (p.managed
+    ? '<span class="src-tag">面板管理条目</span>'
+    : (p.source === 'override'
+        ? `<span class="src-tag">覆盖显示中，来源：${esc(p.file)}；保存后将以面板数据接管</span>`
+        : `<span class="src-tag">扩展包条目（${esc(p.file)}）；保存后将以面板数据覆盖其显示</span>`))
+    : ''
+  return `
+    <div class="img-pick" id="img-pick">
+      <span class="hint" id="img-hint">点击选择图片（png / jpg / gif / webp，≤20MB）</span>
+    </div>
+    <input type="file" id="file-input" accept=".png,.jpg,.jpeg,.gif,.webp,image/*" style="display:none">
+    <div class="form-grid">
+      <div class="form-row">
+        <label>id（图片文件名，仅字母/数字/-/_）</label>
+        <input id="f-id" placeholder="如 my-cool-pig" ${isEdit ? 'disabled' : ''} value="${esc(isEdit ? editor.id : '')}">
+      </div>
+      <div class="form-row">
+        <label>名称</label>
+        <input id="f-name" placeholder="猪猪的展示名">
+      </div>
+    </div>
+    <div class="form-row">
+      <label>简述 description（一句话）</label>
+      <input id="f-desc" placeholder="点出这只猪最鲜明的特点">
+    </div>
+    <div class="form-row">
+      <label>分析 analysis（第二人称人格分析）</label>
+      <textarea id="f-ana" rows="4" placeholder="以「你」开头，2~4 句，贴合图片气质"></textarea>
+    </div>
+    <div class="ai-row">
+      <textarea id="f-note" placeholder="AI 生成备注（可选）：补充这只猪的设定 / 梗 / 语气要求，帮助 AI 更贴合"></textarea>
+      <button id="btn-ai" class="ghost" title="根据名称、图片与备注生成简述与分析">✨ AI 生成</button>
+    </div>
+    <div class="editor-conflicts" id="editor-conflicts"></div>
+    ${fileNote ? `<div class="form-row">${fileNote}</div>` : ''}
+    <div class="form-row src-tag" id="edit-meta"></div>`
+}
+
+function openEditor(pigId) {
+  editor.mode = pigId ? 'edit' : 'new'
+  editor.id = pigId || ''
+  editor.uploadId = ''
+  editor.imageDirty = false
+  if (editor.objectURL) { URL.revokeObjectURL(editor.objectURL); editor.objectURL = '' }
+  editor.busy = false
+
+  const current = editor.mode === 'edit' ? pigs.find(x => x.id === editor.id) : null
+  const buttons = [{ text: '取消', onClick: () => { abortUpload().finally(closeModal) } }]
+  if (current?.managed) {
+    buttons.push({ text: '删除', cls: 'danger', onClick: () => deleteEditor() })
+  }
+  buttons.push({ text: '保存', cls: 'primary', onClick: () => saveEditor() })
+
+  const mask = openModal(editor.mode === 'edit' ? `编辑：${editor.id}` : '新建猪猪', editorHTML(), buttons)
+  if (editor.mode === 'edit') {
+    const p = pigs.find(x => x.id === editor.id)
+    if (p) {
+      mask.querySelector('#f-name').value = p.name
+      mask.querySelector('#f-desc').value = p.description || ''
+      mask.querySelector('#f-ana').value = p.analysis || ''
+      showEditorImage(imgURL(p.id, p.imageVersion + 1), false)
+      renderEditorConflicts(p.conflicts)
+    }
+  }
+  mask.querySelector('#btn-ai').disabled = !vlmConfigured
+  mask.querySelector('#img-pick').onclick = () => mask.querySelector('#file-input').click()
+  mask.querySelector('#file-input').addEventListener('change', e => pickImage(e.target.files[0]))
+  mask.querySelector('#btn-ai').onclick = () => runVlm(mask)
+}
+
+// 删除面板条目：覆盖型删除后官方显示自动恢复
+async function deleteEditor() {
+  const p = pigs.find(x => x.id === editor.id)
+  if (!p?.managed) return
+  const goOn = await confirmBox(
+    `确定删除「${esc(p.name)}」（${esc(p.id)}）吗？<br>` +
+    (p.source === 'override'
+      ? '<span style="color:var(--muted);font-size:12px">该条目覆盖了官方猪猪，删除后将恢复官方显示。</span>'
+      : '<span style="color:var(--muted);font-size:12px">将同时删除自定义图片，收集到该猪猪的用户记录会变为未解锁。</span>'))
+  if (!goOn) return
+  try {
+    await req('POST', '/pig/delete', { id: editor.id })
+    toast('已删除')
+    closeModal()
+    await loadPigs()
+  } catch (e) {
+    toast(e.message, true)
+  }
+}
+
+function showEditorImage(src, isLocal) {
+  const pick = document.getElementById('img-pick')
+  if (!pick) return
+  pick.innerHTML = `<img src="${esc(src)}"><span class="hint">${isLocal ? '已选择新图，保存后生效' : '当前图片，点击更换'}</span>`
+}
+
+function renderEditorConflicts(conflicts) {
+  const box = document.getElementById('editor-conflicts')
+  if (!box) return
+  box.innerHTML = (conflicts || []).map(c => `<div class="conflict-item">⚠ ${esc(c.detail)}</div>`).join('')
+}
+
+async function abortUpload() {
+  if (editor.uploadId) {
+    const id = editor.uploadId
+    editor.uploadId = ''
+    try { await req('POST', '/upload/abort', { id }) } catch (e) {}
+  }
+}
+
+// 分片上传新图：begin → chunk(48KB base64) → 保留会话，保存时 commit
+async function pickImage(file) {
+  if (!file) return
+  if (!/image\//.test(file.type) && !/\.(png|jpe?g|gif|webp)$/i.test(file.name)) {
+    return toast('请选择图片文件（png/jpg/gif/webp）', true)
+  }
+  if (file.size > 20 * 1024 * 1024) return toast('图片超过 20MB 上限', true)
+  if (editor.busy) return
+  editor.busy = true
+  const hint = document.getElementById('img-hint')
+  try {
+    await abortUpload()
+    const begin = await req('POST', '/upload/begin', {})
+    editor.uploadId = begin.id
+    const CHUNK = 48 * 1024 // 48KB/片 base64 后约 64KB，稳低于全局 100kb body 限制
+    for (let off = 0; off < file.size; off += CHUNK) {
+      const slice = file.slice(off, off + CHUNK)
+      const data = await new Promise((resolve, reject) => {
+        const fr = new FileReader()
+        fr.onload = () => resolve(String(fr.result).split(',')[1] || '')
+        fr.onerror = () => reject(new Error('读取图片失败'))
+        fr.readAsDataURL(slice)
+      })
+      await req('POST', '/upload/chunk', { id: editor.uploadId, data })
+      if (hint) hint.textContent = `上传中 ${Math.min(100, Math.round((off + CHUNK) / file.size * 100))}%`
+    }
+    editor.imageDirty = true
+    if (editor.objectURL) URL.revokeObjectURL(editor.objectURL)
+    editor.objectURL = URL.createObjectURL(file)
+    showEditorImage(editor.objectURL, true)
+    toast('图片已就绪，填写信息后点击保存')
+  } catch (e) {
+    await abortUpload()
+    toast(e.message, true)
+  } finally {
+    editor.busy = false
+    if (hint && !editor.imageDirty) hint.textContent = '点击选择图片（png / jpg / gif / webp，≤20MB）'
+  }
+}
+
+function collectForm() {
+  return {
+    id: document.getElementById('f-id')?.value.trim() || editor.id,
+    name: document.getElementById('f-name')?.value.trim() || '',
+    description: document.getElementById('f-desc')?.value.trim() || '',
+    analysis: document.getElementById('f-ana')?.value.trim() || '',
+    note: document.getElementById('f-note')?.value.trim() || '',
+  }
+}
+
+// VLM 生成文案：优先用新上传的图片，其次已有条目图片
+async function runVlm(mask) {
+  if (editor.busy) return
+  const form = collectForm()
+  if (!form.name) return toast('请先填写名称，AI 需要名称来理解这只猪', true)
+  let imageSource
+  if (editor.uploadId) imageSource = { type: 'upload', id: editor.uploadId }
+  else if (editor.mode === 'edit') imageSource = { type: 'pig', id: editor.id }
+  else return toast('请先选择图片，AI 要看图作文', true)
+
+  editor.busy = true
+  const btn = mask.querySelector('#btn-ai')
+  const old = btn.textContent
+  btn.disabled = true
+  btn.textContent = '生成中…（可能需要一分钟）'
+  try {
+    const d = await req('POST', '/vlm', { name: form.name, note: form.note, imageSource })
+    mask.querySelector('#f-desc').value = d.description
+    mask.querySelector('#f-ana').value = d.analysis
+    toast('文案已生成，可自行修改后保存')
+  } catch (e) {
+    toast(e.message, true)
+  } finally {
+    editor.busy = false
+    btn.disabled = !vlmConfigured
+    btn.textContent = old
+  }
+}
+
+// 保存：换了图走 commit（带冲突确认），没换图走 /pig/save
+async function saveEditor() {
+  if (editor.busy) return
+  const form = collectForm()
+  if (editor.mode === 'new' && !PIG_ID_RE.test(form.id)) {
+    return toast('id 不合法：仅允许字母/数字/-/_，最长 64 字符', true)
+  }
+  if (!form.name) return toast('请填写名称', true)
+
+  editor.busy = true
+  try {
+    if (editor.imageDirty && editor.uploadId) {
+      if (editor.mode === 'new') {
+        editor.id = form.id
+      }
+      await commitWithConflictFlow(form, false)
+    } else {
+      if (editor.mode === 'new') return toast('新建猪猪请先选择图片', true)
+      await req('POST', '/pig/save', { id: editor.id, name: form.name, description: form.description, analysis: form.analysis })
+      toast('文案已保存')
+      closeModal()
+    }
+    await loadPigs()
+  } catch (e) {
+    toast(e.message, true)
+  } finally {
+    editor.busy = false
+  }
+}
+
+// commit 冲突流程：后端校验到 id/名称/MD5 重复时先返回 conflicts 不落盘，
+// 弹窗展示明细，用户确认覆盖后带 force:true 重新提交（会话保留，无需重传图片）
+async function commitWithConflictFlow(form, force) {
+  const d = await req('POST', '/upload/commit', {
+    id: editor.uploadId,
+    pigId: editor.id,
+    name: form.name,
+    description: form.description,
+    analysis: form.analysis,
+    force,
+  })
+  if (d.committed) {
+    toast(force && d.conflicts?.length ? '已确认覆盖并保存' : '保存成功')
+    closeModal()
+    return
+  }
+  const goOn = await confirmBox(
+    `<p style="margin-bottom:6px">以下内容与现有图鉴重复：</p>` +
+    d.conflicts.map(c => `<div class="conflict-item">⚠ ${esc(c.detail)}</div>`).join('') +
+    `<p style="margin-top:8px;color:var(--muted);font-size:12px">冲突只影响显示：确认后将覆盖对应条目的名称/文案/图片，收集进度不受影响。</p>`,
+    '覆盖并保存', 'primary')
+  if (!goOn) return
+  await commitWithConflictFlow(form, true)
+}
+
+loadPigs()
+</script>
+</body>
+</html>
