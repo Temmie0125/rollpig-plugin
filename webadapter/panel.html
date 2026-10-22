@@ -75,7 +75,11 @@ textarea { resize: vertical; line-height: 1.5; }
 .stat {
   font-size: 12px; color: var(--muted); background: var(--panel2);
   border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px; white-space: nowrap;
+  cursor: pointer; user-select: none; transition: filter .15s, background .15s;
 }
+.stat:hover { border-color: var(--accent); color: var(--text); }
+.stat.active { background: var(--accent-weak); color: var(--accent); border-color: transparent; }
+.stat.active b { color: var(--accent); }
 .stat b { color: var(--text); font-weight: 600; }
 .topbar .spacer { flex: 1; }
 #search { width: 200px; }
@@ -155,6 +159,18 @@ main { flex: 1; overflow-y: auto; padding: 16px; }
 .ai-row { display: flex; gap: 8px; align-items: stretch; margin-bottom: 10px; }
 .ai-row textarea { flex: 1; min-height: 52px; }
 .src-tag { font-size: 11px; color: var(--muted); }
+
+/* ===== 只读详情（官方条目） ===== */
+.img-view {
+  display: flex; align-items: center; justify-content: center;
+  background: var(--panel2); border-radius: var(--radius); min-height: 160px;
+  margin-bottom: 12px; overflow: hidden; padding: 8px;
+}
+.img-view img { max-width: 100%; max-height: 240px; object-fit: contain; }
+.img-view .noimg { font-size: 48px; opacity: .4; }
+.view-row { margin-bottom: 10px; }
+.view-row label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 2px; }
+.view-row .val { line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
 
 /* ===== toast ===== */
 #toast-box {
@@ -275,6 +291,7 @@ let pigs = []
 let stats = { total: 0, official: 0, custom: 0, override: 0 }
 let vlmConfigured = false
 let search = ''
+let filter = 'all'     // all | official | custom | override（点击顶部统计标签筛选）
 
 // 编辑器状态
 const editor = {
@@ -303,19 +320,31 @@ async function loadPigs() {
 }
 
 function renderStats() {
-  $('stats').innerHTML = `
-    <span class="stat">共 <b>${stats.total}</b></span>
-    <span class="stat">官方 <b>${stats.official}</b></span>
-    <span class="stat">自定义 <b>${stats.custom}</b></span>
-    <span class="stat">覆盖官方 <b>${stats.override}</b></span>`
+  const chips = [
+    ['all', `共 <b>${stats.total}</b>`],
+    ['official', `官方 <b>${stats.official}</b>`],
+    ['custom', `自定义 <b>${stats.custom}</b>`],
+    ['override', `覆盖官方 <b>${stats.override}</b>`],
+  ]
+  $('stats').innerHTML = chips.map(([key, label]) =>
+    `<span class="stat${filter === key ? ' active' : ''}" data-filter="${key}" title="点击筛选">${label}</span>`).join('')
+  $('stats').querySelectorAll('.stat').forEach(el => {
+    el.onclick = () => {
+      const key = el.dataset.filter
+      filter = key === 'all' || filter === key ? 'all' : key
+      renderStats()
+      renderGrid()
+    }
+  })
 }
 
 function renderGrid() {
   const q = search.trim().toLowerCase()
-  const list = q
-    ? pigs.filter(p => p.name.toLowerCase().includes(q) || p.id.toLowerCase().includes(q))
-    : pigs
+  const list = pigs
+    .filter(p => filter === 'all' || p.source === filter)
+    .filter(p => !q || p.name.toLowerCase().includes(q) || p.id.toLowerCase().includes(q))
   $('empty').style.display = list.length ? 'none' : ''
+  $('empty').textContent = filter === 'all' && !q ? '猪圈空荡荡' : '没有匹配的猪猪'
   $('grid').innerHTML = list.map(p => {
     const flags = []
     if (p.source === 'custom') flags.push('<span class="badge custom">自定义</span>')
@@ -387,35 +416,48 @@ function editorHTML() {
 }
 
 function openEditor(pigId) {
-  editor.mode = pigId ? 'edit' : 'new'
-  editor.id = pigId || ''
+  const p = pigId ? pigs.find(x => x.id === pigId) : null
+  // 官方条目只读：防止误改覆盖官方显示；确需覆盖请新建同 id 猪猪走冲突确认流程
+  if (p?.source === 'official') return openViewer(p)
+
+  editor.mode = p ? 'edit' : 'new'
+  editor.id = p?.id || ''
   editor.uploadId = ''
   editor.imageDirty = false
   if (editor.objectURL) { URL.revokeObjectURL(editor.objectURL); editor.objectURL = '' }
   editor.busy = false
 
-  const current = editor.mode === 'edit' ? pigs.find(x => x.id === editor.id) : null
   const buttons = [{ text: '取消', onClick: () => { abortUpload().finally(closeModal) } }]
-  if (current?.managed) {
+  if (p?.managed) {
     buttons.push({ text: '删除', cls: 'danger', onClick: () => deleteEditor() })
   }
   buttons.push({ text: '保存', cls: 'primary', onClick: () => saveEditor() })
 
   const mask = openModal(editor.mode === 'edit' ? `编辑：${editor.id}` : '新建猪猪', editorHTML(), buttons)
-  if (editor.mode === 'edit') {
-    const p = pigs.find(x => x.id === editor.id)
-    if (p) {
-      mask.querySelector('#f-name').value = p.name
-      mask.querySelector('#f-desc').value = p.description || ''
-      mask.querySelector('#f-ana').value = p.analysis || ''
-      showEditorImage(imgURL(p.id, p.imageVersion + 1), false)
-      renderEditorConflicts(p.conflicts)
-    }
+  if (p) {
+    mask.querySelector('#f-name').value = p.name
+    mask.querySelector('#f-desc').value = p.description || ''
+    mask.querySelector('#f-ana').value = p.analysis || ''
+    showEditorImage(imgURL(p.id, p.imageVersion + 1), false)
+    renderEditorConflicts(p.conflicts)
   }
   mask.querySelector('#btn-ai').disabled = !vlmConfigured
   mask.querySelector('#img-pick').onclick = () => mask.querySelector('#file-input').click()
   mask.querySelector('#file-input').addEventListener('change', e => pickImage(e.target.files[0]))
   mask.querySelector('#btn-ai').onclick = () => runVlm(mask)
+}
+
+// 官方猪猪只读详情
+function openViewer(p) {
+  openModal(`官方猪猪：${p.name}`, `
+    <div class="img-view">${p.hasImage
+      ? `<img src="${esc(imgURL(p.id, p.imageVersion + 1))}" alt="">`
+      : '<span class="noimg">🐷</span>'}</div>
+    <div class="view-row"><label>id</label><div class="val">${esc(p.id)}</div></div>
+    <div class="view-row"><label>简述</label><div class="val">${esc(p.description) || '—'}</div></div>
+    <div class="view-row"><label>分析</label><div class="val">${esc(p.analysis) || '—'}</div></div>
+    <div class="form-row src-tag">官方图鉴条目为只读；如需覆盖其显示，请新建同 id 猪猪并在冲突确认中选择覆盖</div>
+  `, [{ text: '关闭', cls: 'primary' }])
 }
 
 // 删除面板条目：覆盖型删除后官方显示自动恢复
