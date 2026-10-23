@@ -252,11 +252,14 @@ function toast(msg, isErr) {
 }
 
 // ===== 弹窗 =====
+// opts.stack: 不关闭已有弹窗、叠放其上（如编辑器上方的冲突/删除确认）；
+// opts.onClose: 本弹窗以任意方式（按钮/✕/点遮罩）关闭时回调
 let modalClose = null
 function openModal(title, bodyHTML, buttons, opts = {}) {
-  closeModal()
+  if (!opts.stack) closeModal()
   const mask = document.createElement('div')
   mask.className = 'mask'
+  if (opts.stack) mask.style.zIndex = 150
   const btnsHTML = (buttons || []).map((b, i) =>
     `<button data-i="${i}" class="${b.cls || ''}">${esc(b.text)}</button>`).join('')
   mask.innerHTML = `<div class="modal${opts.wide ? ' wide' : ''}">
@@ -264,25 +267,33 @@ function openModal(title, bodyHTML, buttons, opts = {}) {
     <div class="m-body">${bodyHTML}</div>
     ${btnsHTML ? `<div class="m-foot">${btnsHTML}</div>` : ''}
   </div>`
-  mask.addEventListener('click', e => { if (e.target === mask) closeModal() })
-  mask.querySelector('.close').onclick = closeModal
+  const closeThis = () => {
+    mask.remove()
+    opts.onClose?.()
+    if (modalClose === closeThis) modalClose = null
+  }
+  mask.addEventListener('click', e => { if (e.target === mask) closeThis() })
+  mask.querySelector('.close').onclick = closeThis
   ;(buttons || []).forEach((b, i) => {
-    mask.querySelector(`.m-foot [data-i="${i}"]`).onclick = () => b.onClick?.(mask)
+    mask.querySelector(`.m-foot [data-i="${i}"]`).onclick = () => b.onClick?.(mask, closeThis)
   })
   document.body.appendChild(mask)
-  modalClose = closeModal
+  if (!opts.stack) modalClose = closeThis
   return mask
 }
 function closeModal() {
   document.querySelectorAll('.mask').forEach(m => m.remove())
   modalClose = null
 }
+// 确认框：叠放在当前弹窗之上，取消/✕/点遮罩都返回 false，底下编辑器的内容原样保留
 function confirmBox(html, dangerBtn = '删除', btnCls = 'danger') {
   return new Promise(resolve => {
+    let done = false
+    const settle = v => { if (!done) { done = true; resolve(v) } }
     openModal('确认操作', `<div style="line-height:1.7">${html}</div>`, [
-      { text: '取消', onClick: () => { closeModal(); resolve(false) } },
-      { text: dangerBtn, cls: btnCls, onClick: () => { closeModal(); resolve(true) } },
-    ])
+      { text: '取消', onClick: (_, close) => { settle(false); close() } },
+      { text: dangerBtn, cls: btnCls, onClick: (_, close) => { settle(true); close() } },
+    ], { stack: true, onClose: () => settle(false) })
   })
 }
 
@@ -628,7 +639,7 @@ async function commitWithConflictFlow(form, force) {
   const goOn = await confirmBox(
     `<p style="margin-bottom:6px">以下内容与现有图鉴重复：</p>` +
     d.conflicts.map(c => `<div class="conflict-item">⚠ ${esc(c.detail)}</div>`).join('') +
-    `<p style="margin-top:8px;color:var(--muted);font-size:12px">冲突只影响显示：确认后将覆盖对应条目的名称/文案/图片，收集进度不受影响。</p>`,
+    `<p style="margin-top:8px;color:var(--muted);font-size:12px">冲突只影响显示：确认后将覆盖对应条目的名称/文案/图片，收集进度不受影响；点取消可返回编辑修改 id / 名称。</p>`,
     '覆盖并保存', 'primary')
   if (!goOn) return
   await commitWithConflictFlow(form, true)
