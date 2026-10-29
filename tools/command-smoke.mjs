@@ -67,6 +67,29 @@ fake = makeE('1001')
 await plugin.todayPig(fake.e)
 console.log('today repeat replies', fake.replies.length, String(fake.replies[0]).slice(0, 20))
 
+// 官方 QQBot + Markdown：群聊回复必须以 @ 开头，图片缺失时仍保留 Markdown（不再降级成纯文本）
+plugin.config.markdown = true
+fake = makeE('1001', { platform: 'QQ-group' })
+await plugin.todayPig(fake.e)
+const mdDraw = fake.replies[0]
+const mdText = Array.isArray(mdDraw) ? mdDraw.filter(item => typeof item === 'string').join('') : String(mdDraw)
+console.log('markdown draw', Array.isArray(mdDraw) && mdDraw[0]?.type === 'at' ? 'at-first' : 'no-at',
+  mdText.includes('**【') ? 'bold-title' : 'no-bold',
+  mdText.includes('> ') ? 'quote' : 'no-quote',
+  Array.isArray(mdDraw) && mdDraw.some(item => item?.type === 'image') ? 'image' : 'no-image')
+const { replyDraw } = await import('../lib/commands/daily.js')
+fake = makeE('1001', { platform: 'QQ-group' })
+await replyDraw(plugin, fake.e, {
+  pig: { id: 'no-such-pig', name: '缺图猪' },
+  appearance: { name: '缺图猪', description: '简述', analysis: '第一行\n第二行' },
+  level: 0,
+  hint: '缺图测试'
+})
+const missingImage = fake.replies[0]
+console.log('markdown missing image', Array.isArray(missingImage) && missingImage[0]?.type === 'at' ? 'at-first' : 'no-at',
+  missingImage.some(item => typeof item === 'string' && item.includes('**【缺图猪】**')) ? 'bold-title' : 'no-bold')
+plugin.config.markdown = false
+
 fake = makeE('1001', {
   msg: '烤群友',
   at: '1002',
@@ -78,6 +101,26 @@ console.log('member roast replies', fake.replies.length, fake.replies.map(item =
 fake = makeE('1001', { msg: '今日烤猪', message: [{ type: 'text', text: '今日烤猪' }] })
 await plugin.todayRoast(fake.e)
 console.log('self roast replies', fake.replies.length, fake.replies.map(item => Array.isArray(item) ? `array(${item.length})` : String(item).slice(0, 30)))
+
+// 官方 QQBot + Markdown 的今日烤猪同样要 @ 发起人并走 Markdown
+// （随机猪可能本身就是熟食/人类形态，会走拦截文案，这里多试几个用户直到真正出结果）
+plugin.config.markdown = true
+let mdRoastResult = 'not-triggered'
+for (const uid of ['1010', '1011', '1012', '1013', '1014', '1015']) {
+  fake = makeE(uid, { platform: 'QQ-group', msg: '今日烤猪', message: [{ type: 'text', text: '今日烤猪' }] })
+  await plugin.todayRoast(fake.e)
+  const reply = fake.replies[0]
+  if (!Array.isArray(reply) || !reply.some(item => item?.type === 'image')) continue
+  const text = reply.filter(item => typeof item === 'string').join('')
+  mdRoastResult = [
+    reply[0]?.type === 'at' ? 'at-first' : 'no-at',
+    text.includes('**【') ? 'bold-title' : 'no-bold',
+    reply.some(item => item?.type === 'image') ? 'image' : 'no-image'
+  ].join(' ')
+  break
+}
+console.log('markdown roast', mdRoastResult)
+plugin.config.markdown = false
 
 fake = makeE('1001', { msg: '烤箱续火', message: [{ type: 'text', text: '烤箱续火' }] })
 await plugin.refill(fake.e)

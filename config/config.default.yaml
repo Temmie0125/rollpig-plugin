@@ -3,7 +3,8 @@
 # 管理员也可直接发送 #猪猪设置markdown开启 / #猪猪设置markdown关闭 快捷切换
 # 以上配置同样可在锅巴（Guoba）「今天是什么小猪」配置页修改
 
-# Markdown回复：开启后「今日小猪」「猪圈」将按官方QQBot支持的Markdown方式回复
+# Markdown回复：开启后「今日小猪」「猪圈」「今日烤猪」「烤群友」将按官方QQBot支持的Markdown方式回复
+# 群聊回复会以 @发起人 开头；图片暂时缺失时仍保留 Markdown 排版，不会退回纯文本
 # 仅官方QQBot适配器（QQ群/QQ私聊/QQ频道）生效，其他平台自动回退为普通图片回复
 markdown: false
 
