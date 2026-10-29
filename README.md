@@ -1,175 +1,166 @@
 # 🐖 yunzai-plugin-rollpig 🐖
 
-> 今天是什么小猪 - Yunzai-Bot 插件版本
+> 今天是什么小猪 - Yunzai-Bot 插件（RollPig Plus 移植版）
 
 ## ✨ 特性
 
-- **今日小猪**: 每天抽取属于你的小猪类型，重复抽到会"升级"（如【猪堡包】Lv.2）🐖
-- **猪圈**: 查看个人猪猪图鉴与收集进度，支持 @他人 代查 🐖
-- **随机小猪**: 从 PigHub 随机获取猪猪图 🐖
-- **找猪**: 从 PigHub 模糊搜索猪猪图 🐖
-- **Markdown回复**: 可选开启，官方QQBot 下按 Markdown 格式回复并附加按钮 🐖
-- **自定义图鉴**: 将扩展数据丢进 `resource/custom/` 即可扩展本地猪猪图鉴（新增猪猪进入抽取池；与官方 id 冲突时仅覆盖显示，不影响收集进度）🐖
-- **管理面板**: QWA / 锅巴 双宿主可视化面板，上传图片与文案、重复性校验、AI 生成文案 🐖
+- **今日小猪**：每天抽取专属小猪；重复抽取累积 EX Lv.0–5，连续重复会提高新猪权重（软保底）
+- **EX 差分**：达到 EX 等级自动切换专属立绘与文案（随插件内置官方 EX 差分资源）
+- **昨日小猪**：昨日回顾卡（足迹 / 高光 / 小结 / 今日余波）；昨天漏抽会自动免费补签
+- **明日小猪**：随机预测文案
+- **完整烤猪**：今日烤猪、烤群友、随机烤群友、加急生火、强行点火、未抽猪惩罚、反噬、每日加餐
+- **预约 / 聚众烤猪**：目标未抽猪或受保护时自动建预约；回复通知发送「加入」即可添柴；保护目标需要凑够火力
+- **烤箱续火**：10 分钟群体投票回满本群活跃玩家的普通烤猪次数；支持表情回应与回复「续火」双模式
+- **猪圈日报**：每天 23:45（上海时间）生成报纸版式长图，含见闻、头条、事件追踪、名人堂、次日保护券；默认关闭推送，群主/管理员可单群开启
+- **PigHub**：随机小猪 / 找猪
+- **管理面板**：QWA / 锅巴双宿主；浏览、上传图片、查重、AI 生成文案
+- **AI 烤猪**：复用锅巴 VLM 配置，独立开关；失败自动回退本地文案，不影响面板 AI 文案
 
 ## 📦 安装
 
-### 方法一：直接下载
-将插件文件夹放入 Yunzai-Bot 的 `plugins` 目录下
+1. 将本插件放入 `Yunzai-Bot/plugins/rollpig-plugin`
+2. 在 Yunzai 根目录执行 `pnpm i`（本插件不新增 npm 依赖）
+3. 重启 Bot
 
-```bash
-cd Yunzai-Bot/plugins
-git clone https://github.com/ZuBeri05/rollpig-plugin.git
-```
+Linux 服务器建议安装中文字体/Chromium 依赖；本插件已内置中文字体与 Noto Color Emoji，不依赖系统字体也能正常渲染日报和昨日卡。
 
-### 方法二：手动安装
-1. 下载本插件
-2. 解压到 `Yunzai-Bot/plugins/` 目录
-3. 重启 Yunzai-Bot
+## 🕹️ 命令
 
-## 🕹️ 使用方法
+| 命令 | 说明 |
+| --- | --- |
+| `#今日小猪` / `#今天是什么小猪` / `#猪来` | 抽取或查看今日小猪（每天一次，跨群全局） |
+| `#昨日小猪` | 查看昨日回顾；昨天未抽会自动补签 |
+| `#明日小猪` | 明日预测 |
+| `#猪圈` / `#猪猪图鉴` / `#我的猪圈` | 个人猪圈长图（支持 `@某人` 代查） |
+| `#随机小猪 [1-20]` | PigHub 随机图片 |
+| `#找猪 关键词` / `#搜猪 关键词` | PigHub 搜索 |
+| `#今日烤猪` | 把自己的今日小猪做成料理 |
+| `#烤群友 @目标` / 回复目标发送 `#烤群友` | 普通烤群友；60% 成功 / 30% 逃脱 / 10% 反噬 |
+| `#加急生火 @目标` | 每日一次；普通目标必中，保护目标贡献 2 点火力 |
+| `#强行点火 @目标` | 仅 Bot 主人；无视保护/接管预约 |
+| `#随机烤群友` / `#随机烤猪` / `#抽个群友烤了` | 从本群今日已抽猪成员中随机开烤 |
+| 回复预约通知发送 `#加入` / `#加入预约` / `#加入烤猪` | 加入预约；最多 12 人 |
+| `#烤箱续火` | 发起 10 分钟续火投票；回复投票消息发送 `#续火` 也可计票 |
+| `#猪圈日报` | 查看本群最近一期封版日报（00:10–23:44） |
+| `#小猪日报 开启/关闭/状态 [群号]` | 群主/管理员控制本群日报推送；主人可指定群号 |
+| `#猪猪设置markdown开启/关闭` | 主人切换官方 QQBot 的 Markdown 回复 |
 
-```
-#今日小猪 - 抽取今天属于你的小猪（每天一次，重复抽到同一只可升级）
-#猪圈 - 查看自己的猪猪图鉴与收集进度（别名：#猪猪图鉴、#我的图鉴）
-#猪圈 @某人 - 查看他人的猪猪图鉴（QQ群内可用，频道内不支持代查）
-#随机小猪 [数量] - 从PigHub随机获取猪猪图（数量1-20，默认1）
-#找猪 [关键词] - 根据关键词查找猪猪
-#猪猪设置markdown开启/关闭 - 管理员切换Markdown回复
-```
+### 烤猪规则摘要
 
-### 使用示例
+- 普通烤群友默认 2 次充能，每 8 小时恢复 1 次；可在锅巴调整
+- 目标已抽猪且未受保护 → 立即结算；目标未抽猪或受保护 → 预约/聚众烤猪
+- 前一天在本群被烤次数最多且 ≥2 的人获得次日保护券：首日 Lv.3，连续受保护每日 +1，最高 Lv.5
+- 保护 Lv.1–5 分别需要 2/3/4/5/6 点火力；普通参与 1 点，加急 2 点
+- 每天第一次普通烤猪成功（或作为普通参与者预约成功）可让今日小猪加餐成长 1 级；EX5 静默且不占机会
+- 未抽猪就烤群友：第一次警告，第二次起自己变成熟食并计入被烤次数
 
-```
-#今日小猪
-#猪圈
-#猪圈 @群友
-#随机小猪 5
-#找猪 黑猪
-#搜猪 水晶
-```
+### 日报说明
 
-### 🏆 收集与升级
+- 定时推送默认**全局关闭**；群主/管理员在群内发送 `#小猪日报 开启` 单独开启
+- 23:45 截止数据并开始出刊（随机延迟 0–10 分钟），失败重试到次日 00:10
+- 关闭推送不影响保护结算，也不影响群友主动发送 `#猪圈日报` 查卡
 
-- 每天首次 `#今日小猪` 会随机抽取一只猪猪，并记入你的猪圈
-- 抽到重复的猪猪会"升级"：第 1 次抽到为 Lv.1，第 2 次为 Lv.2……以此类推
-- `#猪圈` 可查看全部猪猪的解锁状态（Lv 角标）与收集进度百分比
+## ⚙️ 配置
+
+配置文件：`config/config.yaml`（首次运行从 `config.default.yaml` 复制）；也可在锅巴「今天是什么小猪」配置页修改。
+
+| 键 | 默认 | 说明 |
+| --- | --- | --- |
+| `markdown` | `false` | 官方 QQBot Markdown 回复 |
+| `vlmApiUrl` | `''` | OpenAI 兼容接口地址，如 `https://api.example.com/v1` |
+| `vlmApiKey` | `''` | API Key |
+| `vlmModel` | `''` | 面板 VLM / AI 烤猪共用的模型名 |
+| `aiRoastEnabled` | `false` | AI 烤猪独立开关；复用上方三项 VLM 配置 |
+| `roastCooldownHours` | `8` | 普通烤猪每多少小时恢复 1 次 |
+| `roastChargeMax` | `2` | 普通烤猪最大充能（1–6） |
+| `dailyReportDefault` | `false` | 日报全局默认开关；单群设置优先 |
+
+## 🐷 自定义图鉴
+
+- 扩展包：`resource/custom/*.json`，格式与 `pig.json` 相同的数组
+- 图片：`resource/custom/image/{id}.{png|jpg|jpeg|gif|webp}`
+- 自定义差分：`resource/custom/pig_ex_variants.json`（同官方 schema，可覆盖/扩展）
+- 同 id 覆盖显示字段，收集进度按 id 保留；新 id 追加进抽取池
+- 管理面板（QWA）支持浏览、搜索、分片上传、MD5/名称/id 查重与 AI 生成文案
+
+## 💾 数据
+
+- `data/state.json`：所有玩法状态（抽取历史、快照、图鉴、群记录、事件、充能、预约、保护、日报投递）
+- `data/records.json`：旧版记录；首次启动自动迁移到 `state.json`，旧文件保留不删
+- `data/roast-library.json`：AI 烤猪本地文案库
+- `data/state.json.bak`：最多每小时备份一次；损坏时自动尝试恢复
+- `data/` 已被 gitignore
+
+数据保留：抽取历史/快照/群记录 14 天，烤猪事件 7 天；图鉴收集永久保留。
 
 ## 📂 目录结构
 
 ```
-yunzai-plugin-rollpig/
-├── index.js                    # 插件主文件
-├── guoba.support.js            # 锅巴配置页（Markdown 开关 + VLM 配置）
-├── package.json                # 包配置
-├── README.md                   # 说明文档
+rollpig-plugin/
+├── index.js                    # 插件入口、命令注册、定时任务
+├── guoba.support.js            # 锅巴配置页
 ├── lib/
-│   ├── custom-store.js         # 自定义图鉴存储/合并/查重
-│   └── vlm.js                  # VLM 文案生成（OpenAI 兼容）
-├── webadapter/
-│   ├── index.js                # 管理面板 API（QWA + 锅巴双宿主）
-│   └── panel.html              # 管理面板页面
+│   ├── app-config.js           # 配置读写与类型归一化
+│   ├── time.js                 # Asia/Shanghai 日期与 cron
+│   ├── state.js                # state.json 原子存储/迁移/清理
+│   ├── pigs.js                 # 猪库/EX/差分/烤猪形态
+│   ├── daily.js                # 抽取/保底/快照/补签
+│   ├── yesterday.js            # 昨日回顾业务
+│   ├── yesterday-render.js     # 昨日卡渲染
+│   ├── texts.js                # 文案池读取/稳定选句
+│   ├── render.js               # 宿主渲染器/字体/素材 URL
+│   ├── ai-roast.js             # AI 烤猪（复用 VLM 配置）
+│   ├── roast/                  # 充能、烤猪结果、事件、保护、预约、续火
+│   ├── report/                 # 日报装配、视图、渲染、定时任务
+│   └── commands/               # 命令层
+├── resource/
+│   ├── pig.json                # 官方猪库（217 只）
+│   ├── pig_rules.json          # 熟食/人类/已吃掉/已售出
+│   ├── pig_ex_variants.json    # EX 差分文案
+│   ├── image/                  # 猪猪图片 + EX2 差分图
+│   ├── report/                 # 日报报纸素材
+│   ├── yesterday/              # 昨日卡素材
+│   ├── fonts/                  # 思源黑体/宋体子集/ZCOOL/Emoji
+│   ├── report.html / yesterday.html / pen.html
+│   └── refill.jpg
+├── tools/                      # 一次性合并/下载/校验/预览/烟雾测试
 ├── config/
-│   ├── config.default.yaml     # 默认配置（勿改）
-│   └── config.yaml             # 用户配置（自动生成，可修改）
-├── data/                       # 数据目录（自动生成）
-│   └── records.json            # 用户记录（含每种猪猪的抽到次数）
-└── resource/                   # 资源目录
-    ├── pig.json                # 官方小猪信息
-    ├── pen.html                # 猪圈图鉴渲染模板
-    ├── image/                  # 官方小猪图片
-    │   └── *.{png,jpg,...}
-    └── custom/                 # 自定义图鉴目录（gitignore，可整目录分发）
-        ├── *.json              # 扩展包（任意命名，丢入即读）
-        ├── custom-pigs.json    # 面板写入的条目（同 id 时优先于扩展包）
-        └── image/              # 自定义猪猪图片
-            └── {id}.{扩展名}
+└── data/                       # 运行时生成（gitignore）
 ```
 
-## 🐷 自定义图鉴扩展
+## 🧰 维护工具
 
-把扩展数据放进 `resource/custom/` 即可，无需改任何代码，保存后自动生效：
+```bash
+# 合并 plus 本地猪库（同 id 跳过；跨 id 完全重复跳过）
+node tools/merge-official.mjs --dry-run
+node tools/merge-official.mjs
 
-- **扩展包**：`resource/custom/` 下任意 `*.json`，格式与 `pig.json` 相同的数组：
-  ```json
-  [
-    { "id": "my-pig", "name": "我的猪猪", "description": "一句话简述", "analysis": "第二人称人格分析" }
-  ]
-  ```
-- **图片**：放到 `resource/custom/image/`，文件名为 `{id}.{扩展名}`（png/jpg/jpeg/gif/webp）
-- **合并规则**：
-  - id 与官方相同 → 仅覆盖显示（名称/文案/图片），收集进度按 id 记录不受影响
-  - id 是新的 → 追加进图鉴并进入「今日小猪」抽取池，收集率分母随之扩大
-  - 多个 json 同 id 时按文件名顺序后者覆盖前者；面板的 `custom-pigs.json` 最后合并、优先级最高
-- 冲突只影响显示，不影响图鉴收集进度
+# 拉取官方 EX 差分（过滤到当前猪库）
+node tools/fetch-variants.mjs
 
-## 🖥️ 管理面板
+# 下载 Noto Color Emoji 分片
+node tools/fetch-emoji-font.mjs
 
-安装 [QQBot-Web-Adapter](https://github.com/Temmie0125/QQBot-Web-Adapter) 或锅巴（Guoba）后自动出现「🐷 猪猪图鉴管理」页面，两个宿主共用同一份页面：
+# 校验猪库/差分/素材/字体
+node tools/validate-assets.mjs
 
-- 可视化浏览全部官方 + 自定义猪猪（来源徽标、无图标记、重复提示角标），顶部统计标签可点击筛选，支持搜索
-- 官方条目为只读详情，防误改；新建/编辑猪猪：分片上传图片（≤20MB）、填写文案；保存同 id 条目即覆盖其显示
-- 重复性校验：提交时检查 **图片 MD5 / 名称 / id** 三类重复并列出明细，确认后可选择覆盖保存（不强制拒绝）
-- 删除面板条目：覆盖型条目删除后自动恢复官方显示（扩展包条目请直接删除对应 json）
-- ✨ AI 生成文案：根据名称、图片与可选备注，自动生成 description 与 analysis（需先在锅巴配置页填写 VLM 配置）
+# 生成日报/昨日卡预览
+node tools/render-preview.mjs
 
-## 🐷 新增小猪（改官方库）
-
-### 1. 编辑 pig.json
-
-在 `resource/pig.json` 中添加小猪信息：
-
-```json
-{
-  "id": "your-pig-id",
-  "name": "你的小猪名字",
-  "description": "简短描述",
-  "analysis": "详细分析"
-}
+# 本地烟雾测试（使用独立的 .smoke-data/，不会碰生产 data/）
+node tools/smoke.mjs
+node tools/command-smoke.mjs
+node tools/report-job-smoke.mjs
 ```
 
-### 2. 添加图片
+## 📜 素材与许可
 
-将对应图片放到 `resource/image/` 目录，文件名为 `{id}.{扩展名}`
+- 玩法与文案移植自 [nonebot-plugin-rollpig-plus](https://github.com/Felis2026/nonebot-plugin-rollpig-plus)（MIT）
+- EX 差分与部分猪图来自 [rollpig-resources](https://github.com/Felis2026/rollpig-resources)
+- 思源黑体、Noto Serif SC 子集、ZCOOL 快乐体、Noto Color Emoji 均按 OFL/Apache 许可使用；详见 `LICENSES/` 与 `THIRD_PARTY_NOTICES.md`
 
-支持的图片格式：`png`, `jpg`, `jpeg`, `gif`, `webp`
+## ⚠️ 说明
 
-## ⚙️ 配置说明
-
-| 配置项 | 默认值 | 说明 |
-| --- | --- | --- |
-| `markdown` | `false` | **Markdown回复**：开启后「今日小猪」「猪圈」按官方QQBot支持的Markdown方式回复 |
-| `vlmApiUrl` | 空 | **VLM API 地址**：OpenAI 兼容接口（如 `https://api.example.com/v1`），供面板 AI 生成文案 |
-| `vlmApiKey` | 空 | **VLM API Key** |
-| `vlmModel` | 空 | **VLM 视觉模型**：需支持图片输入（如 `qwen-vl-plus` / `gpt-4o-mini`） |
-
-- 三项 VLM 字段也可在锅巴「今天是什么小猪」配置页填写，保存后面板「✨ AI生成文案」即刻可用
-
-- 开启 Markdown回复 后，「今日小猪」的回复格式为：**@用户 → 第几次抽到提示 → 猪猪图片 → 名称 → 简述 → 详细描述（引用注释块）→ 按钮（👑猪圈 / 🐷今日猪猪）**；「猪圈」的回复格式为：**【@用户 的猪圈】→ 📦已收集 → ⭐收集率 → 🐷本命猪（抽到次数最多的猪猪）→ 图鉴图片 → 按钮（🐷今日猪猪 / 📖我的图鉴）**
-- 仅官方QQBot适配器（QQ群/QQ私聊/QQ频道）生效；其他平台自动回退为普通图片回复
-- 修改 `config/config.yaml` 后立即生效，或由管理员发送 `#猪猪设置markdown开启` / `#猪猪设置markdown关闭` 快捷切换
-- 每日 0 点自动刷新 PigHub 数据（仅内存缓存，不会写入本地图鉴库与用户记录；「随机小猪」「找猪」获取的 PigHub 猪猪不参与猪圈收集）
-- 用户每天只能抽取一次今日小猪
-- 随机小猪和找猪功能从 PigHub API 获取数据
-- 猪圈图鉴布局根据本地猪猪数量自适应（4~14 列、画布宽度与标题字号联动），扩充 `pig.json` 后无需调整模板
-
-### 记录格式（data/records.json）
-
-```json
-{
-  "用户ID": {
-    "date": "2026/10/21",
-    "pig_id": "pig-bun",
-    "pigs": { "pig-bun": 2, "pig": 1 },
-    "total": 3
-  }
-}
-```
-
-旧版记录（仅 `pig_id` + `date`）会在加载时自动迁移。
-
-## 🙏 鸣谢
-
-- [Yunzai-Bot](https://github.com/yoimiya-kokomi/Miao-Yunzait)
-- [PigHub](https://pighub.top/)
-- 原 NoneBot 插件：[nonebot-plugin-rollpig](https://github.com/Bearlele/nonebot-plugin-rollpig)
+- 抽猪是「每用户每天一次、跨群全局」；群记录只用于日报、随机烤猪和保护
+- 业务日期固定按 Asia/Shanghai（UTC+8），Linux 用 UTC 时区也不会错点
+- 当前版本为单进程本地存储，不包含 Cloud 多实例同步、远程共享烤猪文案、远端资源自动同步

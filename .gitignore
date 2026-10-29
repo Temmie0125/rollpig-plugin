@@ -3,4 +3,7 @@ data/
 config/config.yaml
 *.log
 .DS_Store
+temp/
+.smoke-data/
 resource/custom/
+resource/pig.json.bak

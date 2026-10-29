@@ -3,10 +3,11 @@
 <head>
 <meta charset="UTF-8" />
 <style>
+{{@fontCss}}
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
     background: #cddffd;
-    font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif;
+    font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans SC", "RollPigSans", sans-serif;
 }
 #container {
     width: {{penWidth}}px;
@@ -102,6 +103,7 @@ body {
     padding: 3px 0;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }
+.lv0 { background: #b9a98a; }
 .lv1 { background: #58c365; }
 .lv2 { background: #33bfc4; }
 .lv3 { background: #9d7bff; }
@@ -123,7 +125,7 @@ body {
         {{if $value.unlocked}}
         <div class="card">
             <div class="imgbox"><img src="{{$value.image}}" /></div>
-            <div class="ribbon {{($value.level > 3) ? 'lvmax' : 'lv' + $value.level}}">Lv.{{$value.level}}</div>
+            <div class="ribbon {{($value.level > 3) ? 'lvmax' : 'lv' + $value.level}}">EX {{$value.level}}</div>
             <div class="pname">{{$value.name}}</div>
         </div>
         {{else}}

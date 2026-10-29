@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=720">
+<style>
+{{@fontCss}}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'RollPigSans','Noto Sans SC','Microsoft YaHei','Noto Color Emoji',sans-serif;color:#5b3f3a;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+#container{width:720px;padding:20px 24px 26px;background:#f6c9c9 url("{{background}}") center top/cover no-repeat;position:relative;overflow:hidden;}
+#container:before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,228,228,.35),rgba(255,245,235,.18) 35%,rgba(255,236,232,.4));pointer-events:none;}
+.card{position:relative;z-index:1;background:#fff6ec;border:2px solid #f3d8cf;border-radius:34px;box-shadow:0 10px 24px rgba(150,90,90,.18);padding:26px 34px 28px;}
+.decor{position:absolute;pointer-events:none;z-index:0;}
+.decor.braces{right:-8px;top:120px;width:82px;opacity:.55;transform:rotate(9deg);}
+.decor.flower{left:-12px;top:38px;width:94px;opacity:.5;transform:rotate(-14deg);}
+.decor.sparkle-gold{left:22px;top:8px;width:44px;opacity:.7;}
+.decor.sparkle-pink{right:34px;top:8px;width:36px;opacity:.65;}
+header{display:flex;align-items:center;gap:14px;position:relative;z-index:2;}
+header .book{width:52px;height:52px;object-fit:contain;transform:rotate(-6deg);}
+header h1{font-family:'RollPigTitle','RollPigSans',sans-serif;font-size:41px;font-weight:400;letter-spacing:3px;color:#4d3330;line-height:1;flex:1;}
+header .date{font-family:'RollPigSans';font-size:20px;color:#8a6660;white-space:nowrap;letter-spacing:1px;}
+.divider{display:block;width:100%;height:14px;object-fit:fill;margin:16px 0 8px;opacity:.8;}
+.hero{height:292px;display:flex;align-items:center;justify-content:center;margin:4px 0 2px;position:relative;}
+.hero img{max-width:100%;max-height:292px;object-fit:contain;filter:drop-shadow(0 8px 12px rgba(160,100,100,.12));}
+.hero-empty{font-family:'RollPigTitle';font-size:120px;color:#f2b6b6;opacity:.5;}
+.role{text-align:center;font-size:24px;line-height:1.5;font-weight:700;color:#5b3f3a;margin-top:2px;}
+.role .name{color:#d35a6e;}
+.outcome{text-align:center;font-size:17px;color:#b15f6d;margin-top:7px;letter-spacing:.5px;}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px 18px;border:2px solid #efc7c1;background:#fff9f2;border-radius:22px;padding:14px 20px;margin-top:17px;}
+.stat{display:flex;align-items:center;gap:9px;font-size:18px;color:#5b3f3a;min-height:32px;}
+.stat img{width:26px;height:26px;object-fit:contain;flex:0 0 auto;}
+.stat b{font-size:22px;color:#d35a6e;margin-left:2px;}
+.stat small{font-size:14px;color:#8a6660;margin-left:1px;}
+.panel{position:relative;margin-top:15px;border:2px solid #f2c9c7;background:#fff3ea;border-radius:24px;padding:16px 22px 15px;}
+.panel.highlight{background:#fff0ee;}
+.panel.summary{background:#fff7ec;}
+.panel .tape{position:absolute;right:18px;top:-13px;width:94px;height:auto;transform:rotate(4deg);opacity:.8;}
+.panel-title{display:flex;align-items:center;gap:8px;font-size:20px;font-weight:700;color:#7b4a4a;letter-spacing:.5px;}
+.panel-title img{width:22px;height:22px;object-fit:contain;}
+.panel-divider{display:block;width:100%;height:10px;object-fit:fill;margin:9px 0 7px;opacity:.75;}
+.panel p{font-size:18px;line-height:1.65;white-space:pre-line;color:#5b3f3a;}
+.panel ul{list-style:none;margin:2px 0 0 0;}
+.panel li{position:relative;padding-left:18px;font-size:18px;line-height:1.65;color:#5b3f3a;margin:3px 0;}
+.panel li:before{content:"•";position:absolute;left:3px;color:#d35a6e;}
+.panel .name{color:#d35a6e;font-weight:700;}
+.panel .num{color:#d35a6e;font-weight:700;}
+.panel .heart{position:absolute;right:20px;bottom:12px;width:30px;height:30px;opacity:.75;}
+.panel.aftereffect{display:flex;gap:14px;align-items:center;background:#eef7f4;border-color:#c8e2da;}
+.panel.aftereffect .shield{width:46px;height:46px;object-fit:contain;flex:0 0 auto;}
+.panel.makeup .desc{font-weight:700;color:#7b4a4a;margin-bottom:4px;}
+.panel .title-note{font-size:15px;color:#a57970;margin-top:4px;}
+</style>
+</head>
+<body>
+<div id="container">
+  <img class="decor flower" src="{{decorFlower}}" alt="">
+  <img class="decor braces" src="{{decorBraces}}" alt="">
+  <img class="decor sparkle-gold" src="{{decorSparkleGold}}" alt="">
+  <img class="decor sparkle-pink" src="{{decorSparklePink}}" alt="">
+  <div class="card">
+    <header>
+      <img class="book" src="{{book}}" alt="">
+      <h1>{{title}}</h1>
+      <div class="date">{{dateLabel}}</div>
+    </header>
+    <img class="divider" src="{{divider}}" alt="">
+    <div class="hero">{{if heroImage}}<img src="{{heroImage}}" alt="">{{else}}<div class="hero-empty">🐷</div>{{/if}}</div>
+    <div class="role">{{@roleHtml}}</div>
+    {{if outcome}}<div class="outcome">{{outcome}}</div>{{/if}}
+
+    {{if footprints.length}}
+    <div class="stats">
+      {{each footprints}}
+      <div class="stat"><img src="{{$value.icon}}" alt=""><span>{{$value.label}}</span><b>{{$value.count}}</b><small>次</small></div>
+      {{/each}}
+    </div>
+    {{/if}}
+
+    {{if experiences.length}}
+    <section class="panel highlight">
+      <img class="tape" src="{{tape}}" alt="">
+      <div class="panel-title"><img src="{{sparkle}}" alt="">{{highlightTitle}}</div>
+      <img class="panel-divider" src="{{highlightDivider}}" alt="">
+      <ul>{{each experiences}}<li>{{@$value.html}}</li>{{/each}}</ul>
+    </section>
+    {{/if}}
+
+    {{if summary}}
+    <section class="panel summary">
+      <img class="heart" src="{{heart}}" alt="">
+      <div class="panel-title">🐷 昨日小结</div>
+      <img class="panel-divider" src="{{summaryDivider}}" alt="">
+      <p>{{summary.text}}</p>
+    </section>
+    {{/if}}
+
+    {{if aftereffect}}
+    <section class="panel aftereffect">
+      <img class="shield" src="{{shield}}" alt="">
+      <div>
+        <div class="panel-title">今日余波</div>
+        <p>{{aftereffect}}</p>
+      </div>
+    </section>
+    {{/if}}
+
+    {{if makeup}}
+    <section class="panel makeup">
+      <div class="panel-title">补签档案</div>
+      <img class="panel-divider" src="{{summaryDivider}}" alt="">
+      {{if description}}<p class="desc">{{description}}</p>{{/if}}
+      {{if analysis}}<p>{{analysis}}</p>{{/if}}
+    </section>
+    {{/if}}
+  </div>
+</div>
+</body>
+</html>

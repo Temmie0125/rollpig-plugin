@@ -21,6 +21,7 @@ import {
   deletePanelPig,
 } from '../lib/custom-store.js'
 import { generatePigCopy, isVlmConfigured } from '../lib/vlm.js'
+import { readConfig } from '../lib/app-config.js'
 
 const UPLOAD_CHUNK = 64 * 1024        // 前端分片大小；base64 后约 87KB，低于全局 100kb body 限制
 const UPLOAD_MAX_SIZE = 20 * 1024 * 1024
@@ -101,6 +102,7 @@ const init = (ctx) => {
           override: items.filter(p => p.source === 'override').length,
         },
         vlmConfigured: isVlmConfigured(),
+        aiRoastEnabled: Boolean(readConfig().aiRoastEnabled),
       })
     } catch (err) {
       logger.error(`[猪猪图鉴] 列表获取失败: ${err}`)

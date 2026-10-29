@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1024">
+<style>
+{{@fontCss}}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{background:#e8d6b2;}
+body{font-family:'RollPigSans','Noto Sans SC','Microsoft YaHei',sans-serif;color:#12100d;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+#container{width:1024px;background:#e8d6b2 url("{{paperUrl}}") repeat-y;background-size:1024px auto;padding:28px 45px 14px;position:relative;}
+#container:after{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at 30% 20%,rgba(255,255,255,.18),transparent 45%),radial-gradient(circle at 70% 70%,rgba(120,90,45,.08),transparent 50%);}
+.paper{position:relative;z-index:1;}
+.masthead{position:relative;padding-bottom:8px;}
+.topline{display:flex;justify-content:space-between;align-items:center;font-family:'RollPigSerifRegular';font-size:18px;letter-spacing:.5px;border-top:2px solid #12100d;border-bottom:1px solid #12100d;padding:5px 0 4px;}
+.topline .center{font-family:'RollPigSerifBold';font-size:20px;letter-spacing:4px;}
+.masthead-main{display:flex;align-items:flex-end;gap:18px;padding:10px 0 4px;}
+.read-pig{width:150px;height:130px;object-fit:contain;flex:0 0 auto;}
+.masthead-title{font-family:'RollPigSerifBlack';font-size:128px;line-height:.95;letter-spacing:6px;color:#15130f;background-image:url("{{inkBlack}}");background-size:cover;background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent;filter:contrast(1.25);white-space:nowrap;flex:1;}
+.datebox{width:150px;text-align:right;border-left:2px solid #12100d;padding-left:16px;flex:0 0 auto;}
+.date-year{font-family:'RollPigSerifBold';font-size:32px;color:#8c1f13;background-image:url("{{inkRed}}");background-size:cover;background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1.05;}
+.date-md{font-family:'RollPigSerifBlack';font-size:46px;color:#8c1f13;background-image:url("{{inkRed}}");background-size:cover;background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1.05;}
+.weekday{margin-top:8px;display:inline-block;background:#7a6e5c;color:#f5ebd1;font-size:18px;padding:3px 10px;font-family:'RollPigSerifRegular';}
+.header-rule{height:7px;border-top:5px solid #12100d;border-bottom:2px solid #12100d;margin-top:6px;}
+.stats{position:relative;margin-top:16px;border-bottom:2px solid #12100d;padding:20px 0 10px;}
+.ribbon{display:inline-block;background:#8c1f13;color:#f5ebd1;font-family:'RollPigSerifBold';font-size:24px;line-height:1;padding:7px 14px 8px;letter-spacing:2px;position:relative;}
+.ribbon:after{content:"";position:absolute;left:0;right:-12px;bottom:-6px;height:6px;background:#8c1f13;clip-path:polygon(0 0,100% 0,100% 100%,0 100%,8px 50%);}
+.ribbon.black{background:#12100d;}
+.ribbon.blue{background:#1a5257;}
+.stat-grid{display:grid;grid-template-columns:repeat({{stats.length}},1fr);gap:0;margin-top:10px;border-top:1px dashed #8c1f13;padding-top:8px;}
+.stat{border-right:1px dashed #8c1f13;padding:0 18px;display:grid;grid-template-columns:56px 1fr;grid-template-rows:auto auto;align-items:center;column-gap:10px;}
+.stat:last-child{border-right:none;}
+.stat img{width:52px;height:52px;object-fit:contain;grid-row:1/3;}
+.stat-label{font-family:'RollPigSerifBold';font-size:22px;letter-spacing:1px;align-self:end;}
+.stat-value{font-family:'RollPigSerifBlack';font-size:58px;line-height:.95;color:#8c1f13;align-self:start;}
+.stat-value small{font-family:'RollPigSans';font-size:18px;color:#12100d;margin-left:4px;}
+.main{display:flex;gap:0;margin-top:14px;}
+.main.two-col .left{flex:0 0 668px;width:668px;}
+.main.two-col .events{flex:0 0 266px;width:266px;}
+.main.two-col:not(.has-events) .left{flex:1 1 auto;width:100%;}
+.main:not(.two-col) .events{flex:1 1 auto;width:100%;}
+.main:not(.has-events) .events{display:none;}
+.left{display:flex;flex-direction:column;gap:14px;min-width:0;}
+.box{position:relative;border:1px solid #5b5144;background:rgba(245,235,209,.28);padding:34px 20px 16px;}
+.box .ribbon{position:absolute;top:-1px;left:-1px;font-size:21px;padding:6px 12px 7px;}
+.observation{min-height:218px;display:flex;gap:14px;align-items:center;padding-top:38px;}
+.observation img{width:150px;height:164px;object-fit:contain;flex:0 0 auto;}
+.rich{font-family:'RollPigSans';font-size:27px;line-height:1.42;letter-spacing:.2px;word-break:break-word;}
+.rich .accent{color:#8c1f13;}
+.rich .bold{font-weight:700;}
+.observation .rich{flex:1;font-size:28px;}
+.headline{min-height:270px;overflow:hidden;padding-top:38px;}
+.headline .headline-text{font-size:29px;line-height:1.45;padding-right:250px;min-height:190px;}
+.headline img{position:absolute;right:4px;bottom:8px;width:250px;height:235px;object-fit:contain;opacity:.98;}
+.tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;max-width:390px;}
+.tags span{border:1.5px solid #8c1f13;color:#8c1f13;font-size:18px;padding:2px 9px;font-family:'RollPigSerifBold';background:rgba(245,235,209,.5);}
+.events{position:relative;border-left:1px solid #5b5144;padding:0 0 0 14px;}
+.events .ribbon{font-size:20px;margin-left:-14px;}
+.event-intro{font-family:'RollPigSans';font-size:19px;line-height:1.35;margin:16px 0 12px;white-space:pre-line;}
+.event{display:flex;gap:8px;margin-bottom:15px;position:relative;}
+.event img{width:28px;height:28px;object-fit:contain;flex:0 0 auto;margin-top:2px;}
+.ordinal{font-family:'RollPigSerifBold';font-size:18px;color:#8c1f13;}
+.event-text{font-family:'RollPigSans';font-size:19px;line-height:1.35;margin-top:2px;}
+.rankings{margin-top:18px;border-top:2px solid #12100d;border-bottom:2px solid #12100d;padding:12px 0 8px;}
+.rankings h2{text-align:center;font-family:'RollPigSerifBold';font-size:26px;letter-spacing:5px;font-weight:700;margin-bottom:10px;}
+.rank-grid{display:grid;grid-template-columns:repeat({{rankings.length}},1fr);gap:0;border-top:1px solid #5b5144;}
+.rank-col{border-right:1px dashed #5b5144;padding:0 12px;}
+.rank-col:last-child{border-right:none;}
+.rank-title{font-family:'RollPigSerifBold';font-size:21px;text-align:center;color:#8c1f13;padding:6px 0 8px;letter-spacing:1px;}
+.rank-row{display:flex;align-items:center;gap:9px;min-height:79px;border-top:1px dashed #b9a98a;padding:3px 0;}
+.rank-no{display:inline-flex;align-items:center;justify-content:center;width:30px;height:36px;background:#b98b45;color:#fff8e8;font-family:'RollPigSerifBold';font-size:19px;flex:0 0 auto;}
+.rank-row:nth-child(3) .rank-no{background:#63706e;}
+.rank-row:nth-child(4) .rank-no{background:#94472a;}
+.rank-row img{width:58px;height:58px;object-fit:contain;flex:0 0 auto;}
+.rank-name{font-family:'RollPigSans';font-size:18px;font-weight:700;line-height:1.2;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.rank-detail{font-family:'RollPigSans';font-size:17px;color:#5b5144;margin-top:2px;}
+.rank-note{text-align:center;font-family:'RollPigSerifRegular';font-size:15px;color:#7a6e5c;margin-top:8px;}
+.coupon{margin-top:14px;height:145px;background:url("{{couponSurface}}") center/cover no-repeat;border:3px solid #1a5257;display:flex;align-items:center;gap:16px;padding:10px 16px;position:relative;overflow:hidden;}
+.coupon:before,.coupon:after{content:"";position:absolute;top:0;bottom:0;width:10px;background:repeating-linear-gradient(to bottom,#1a5257 0 7px,transparent 7px 14px);opacity:.55;}
+.coupon:before{left:-4px}.coupon:after{right:-4px}
+.coupon .shield{width:92px;height:92px;object-fit:contain;flex:0 0 auto;}
+.coupon-title{font-family:'RollPigSerifBlack';font-size:38px;color:#1a5257;letter-spacing:2px;white-space:nowrap;}
+.coupon-name{font-family:'RollPigSans';font-size:24px;font-weight:700;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.coupon-stats{font-family:'RollPigSans';font-size:19px;line-height:1.35;color:#1a5257;white-space:nowrap;}
+.coupon .barcode{width:64px;height:112px;object-fit:contain;margin-left:auto;}
+footer{margin-top:12px;padding-top:8px;border-top:2px solid #12100d;text-align:center;font-family:'RollPigSerifRegular';font-size:16px;color:#3f382f;letter-spacing:1px;}
+</style>
+</head>
+<body>
+<div id="container">
+  <div class="paper">
+    <header class="masthead">
+      <div class="topline"><span>{{volume}} ★</span><span class="center">ROLLPIG DAILY</span><span>★ 今日猪圈记录</span></div>
+      <div class="masthead-main">
+        <img class="read-pig" src="{{readPig}}" alt="">
+        <div class="masthead-title">猪圈日报</div>
+        <div class="datebox"><div class="date-year">{{year}}</div><div class="date-md">{{monthDay}}</div><div class="weekday">{{weekday}}</div></div>
+      </div>
+      <div class="header-rule"></div>
+    </header>
+
+    <section class="stats">
+      <div class="ribbon">今日猪圈</div>
+      <div class="stat-grid">
+        {{each stats}}
+        <div class="stat"><img src="{{$value.icon}}" alt=""><div class="stat-label">{{$value.label}}</div><div class="stat-value">{{$value.value}}<small>{{$value.unit}}</small></div></div>
+        {{/each}}
+      </div>
+    </section>
+
+    <section class="main {{if hasLeft}}two-col{{/if}} {{if hasEvents}}has-events{{/if}}">
+      {{if hasLeft}}
+      <div class="left">
+        {{if observation}}
+        <div class="box observation">
+          <div class="ribbon">猪圈见闻</div>
+          <img src="{{observation.asset}}" alt="">
+          <div class="rich">{{@observation.html}}</div>
+        </div>
+        {{/if}}
+        {{if headline}}
+        <div class="box headline">
+          <div class="ribbon">今日头条</div>
+          <div class="rich headline-text">{{@headline.html}}</div>
+          <img src="{{headline.asset}}" alt="">
+          <div class="tags">{{each headline.tags}}<span>{{$value}}</span>{{/each}}</div>
+        </div>
+        {{/if}}
+      </div>
+      {{/if}}
+      {{if hasEvents}}
+      <aside class="events">
+        <div class="ribbon black">事件追踪</div>
+        <div class="event-intro">{{eventIntro}}</div>
+        {{each events}}
+        <div class="event"><img src="{{$value.icon}}" alt=""><div><div class="ordinal">{{$value.ordinal}}</div><div class="event-text">{{@$value.html}}</div></div></div>
+        {{/each}}
+      </aside>
+      {{/if}}
+    </section>
+
+    {{if rankings.length}}
+    <section class="rankings">
+      <h2>◆ 猪圈名人堂 ◆</h2>
+      <div class="rank-grid" style="grid-template-columns:repeat({{rankings.length}},1fr)">
+        {{each rankings}}
+        <div class="rank-col">
+          <div class="rank-title">♛ {{$value.title}}</div>
+          {{each $value.entries}}
+          <div class="rank-row"><span class="rank-no">{{$value.rank}}</span><img src="{{$value.avatar}}" alt=""><div><div class="rank-name">{{$value.name}}</div><div class="rank-detail">{{$value.detail}}</div></div></div>
+          {{/each}}
+        </div>
+        {{/each}}
+      </div>
+      <div class="rank-note">- 并列排名按首次达成时间排序</div>
+    </section>
+    {{/if}}
+
+    {{if coupon}}
+    <section class="coupon">
+      <img class="shield" src="{{couponShield}}" alt="">
+      <div>
+        <div class="coupon-title">次日保护券</div>
+        <div class="coupon-name">{{coupon.name}}</div>
+      </div>
+      <div class="coupon-stats">遭到 {{coupon.roast_count}} 次烧烤<br>{{coupon.benefit}}</div>
+      <img class="barcode" src="{{couponBarcode}}" alt="">
+    </section>
+    {{/if}}
+
+    <footer>{{footer}}</footer>
+  </div>
+</div>
+</body>
+</html>
