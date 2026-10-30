@@ -124,3 +124,28 @@ test('日报指标/见闻/头条/事件追踪', () => {
   assert.ok(report.headline)
   assert.ok(selectTimeline(report.events, report.headline))
 })
+
+test('帮助菜单数据、文本回退与模板', async () => {
+  const { readFile } = await import('node:fs/promises')
+  const { buildHelpSections, buildHelpText } = await import('../lib/commands/help.js')
+  const sections = buildHelpSections()
+  assert.ok(sections.length >= 5)
+  for (const section of sections) {
+    assert.ok(section.icon && section.title)
+    assert.ok(section.items.length)
+    for (const item of section.items) {
+      assert.ok(item.cmd.startsWith('#'), `命令缺少 # 前缀: ${item.cmd}`)
+      assert.ok(item.desc)
+      for (const key of Object.keys(item)) assert.ok(['cmd', 'desc', 'alias', 'tag'].includes(key))
+    }
+  }
+  const text = buildHelpText()
+  assert.match(text, /#今日小猪/)
+  assert.match(text, /#猪猪帮助/)
+  assert.match(text, /#烤群友/)
+  const template = await readFile(new URL('../resource/help.html', import.meta.url), 'utf8')
+  assert.match(template, /\{\{@fontCss\}\}/)
+  assert.match(template, /\{\{each sections section\}\}/)
+  assert.match(template, /\{\{each section\.items item\}\}/)
+  assert.match(template, /\{\{pigImage\}\}/)
+})

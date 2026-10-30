@@ -6,6 +6,7 @@ import { listOfficialPigs } from './lib/custom-store.js'
 import { ensureState, mutateState, pruneState } from './lib/state.js'
 import { cronForShanghai, everyMinutesForShanghaiHours } from './lib/time.js'
 import * as daily from './lib/commands/daily.js'
+import * as help from './lib/commands/help.js'
 import * as pighub from './lib/commands/pighub.js'
 import * as roast from './lib/commands/roast.js'
 import * as report from './lib/commands/report.js'
@@ -26,6 +27,10 @@ export class RollPigPlugin extends plugin {
       event: 'message',
       priority: 5000,
       rule: [
+        {
+          reg: '^#?(猪猪帮助|小猪帮助|rollpig帮助|pig帮助)\\s*$',
+          fnc: 'help'
+        },
         {
           reg: '^#?(今日小猪|今天是什么小猪|本日小猪|当日小猪|今日猪猪|猪来)$',
           fnc: 'todayPig'
@@ -63,7 +68,7 @@ export class RollPigPlugin extends plugin {
           fnc: 'randomRoast'
         },
         {
-          reg: '^#?(加入|加入预约|加入烤猪)$',
+          reg: '^#(加入|加入预约|加入烤猪)$',
           fnc: 'joinReservation'
         },
         {
@@ -71,7 +76,7 @@ export class RollPigPlugin extends plugin {
           fnc: 'refill'
         },
         {
-          reg: '^#?(续火|投票|支持)$',
+          reg: '^#(续火|投票|支持)$',
           fnc: 'voteRefill'
         },
         {
@@ -149,6 +154,10 @@ export class RollPigPlugin extends plugin {
     } catch (error) {
       ;(globalThis.logger || console).warn?.('[今天是什么小猪] 数据清理失败:', error)
     }
+  }
+
+  help(e) {
+    return help.showHelp(e)
   }
 
   todayPig(e) {

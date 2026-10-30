@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<style>
+{{@fontCss}}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    width: 900px;
+    background: #cddffd;
+    font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans SC", "RollPigSans", sans-serif;
+}
+#container {
+    padding: 52px 44px 36px;
+    background: linear-gradient(180deg, #d9e7ff 0%, #c9dcfc 100%);
+}
+
+/* ===== 头部 ===== */
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    margin-bottom: 36px;
+}
+.title {
+    font-size: 80px;
+    font-weight: 900;
+    color: #f783b0;
+    letter-spacing: 4px;
+    line-height: 1;
+    white-space: nowrap;
+    text-shadow:
+        -4px -4px 0 #fff, 4px -4px 0 #fff, -4px 4px 0 #fff, 4px 4px 0 #fff,
+        0 -4px 0 #fff, 0 4px 0 #fff, -4px 0 0 #fff, 4px 0 0 #fff,
+        10px 12px 0 rgba(214, 92, 146, 0.30);
+}
+.subtitle { margin-top: 22px; font-size: 24px; color: #5a6b99; }
+.pig {
+    flex: 0 0 auto;
+    width: 150px;
+    height: 150px;
+    object-fit: contain;
+    filter: drop-shadow(0 6px 10px rgba(96, 124, 189, 0.35));
+}
+
+/* ===== 分组卡片 ===== */
+.section {
+    background: #ffffff;
+    border-radius: 18px;
+    padding: 26px 30px 18px;
+    margin-bottom: 20px;
+    box-shadow: 0 3px 8px rgba(96, 124, 189, 0.18);
+}
+.section-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 32px;
+    font-weight: 800;
+    color: #2b3a67;
+    padding-bottom: 14px;
+    border-bottom: 2px dashed #e3ecfb;
+}
+.item { display: flex; align-items: flex-start; gap: 16px; padding: 13px 0 12px; }
+.item + .item { border-top: 1px solid #eef3fc; }
+.cmd {
+    flex: 0 0 auto;
+    min-width: 250px;
+    font-size: 23px;
+    font-weight: 700;
+    color: #e0558f;
+    background: #fdeef5;
+    border-radius: 10px;
+    padding: 6px 14px;
+}
+.desc { flex: 1 1 auto; font-size: 22px; color: #4a5568; line-height: 1.55; padding-top: 7px; }
+.alias { display: block; margin-top: 4px; font-size: 19px; color: #8a97b8; }
+.tag {
+    display: inline-block;
+    vertical-align: 3px;
+    margin-left: 8px;
+    font-size: 16px;
+    font-weight: 700;
+    color: #fff;
+    background: linear-gradient(90deg, #ff9f43, #f56fa7);
+    border-radius: 8px;
+    padding: 2px 10px;
+}
+
+/* ===== 页脚 ===== */
+.footer { text-align: center; font-size: 21px; color: #5a6b99; padding-top: 4px; }
+.footer b { color: #f56fa7; }
+</style>
+</head>
+<body>
+<div id="container">
+    <div class="header">
+        <div>
+            <div class="title">猪猪帮助</div>
+            <div class="subtitle">抽猪 · 图鉴 · 烤猪 · 日报，一图看懂「今天是什么小猪」</div>
+        </div>
+        <img class="pig" src="{{pigImage}}" />
+    </div>
+    {{each sections section}}
+    <div class="section">
+        <div class="section-title"><span>{{section.icon}}</span>{{section.title}}</div>
+        {{each section.items item}}
+        <div class="item">
+            <div class="cmd">{{item.cmd}}{{if item.tag}}<span class="tag">{{item.tag}}</span>{{/if}}</div>
+            <div class="desc">{{item.desc}}{{if item.alias}}<span class="alias">也可发送：{{item.alias}}</span>{{/if}}</div>
+        </div>
+        {{/each}}
+    </div>
+    {{/each}}
+    <div class="footer">今天是什么小猪 v{{version}} · 发送 <b>#猪猪帮助</b> 随时查看</div>
+</div>
+</body>
+</html>
