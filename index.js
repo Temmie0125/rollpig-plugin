@@ -76,7 +76,7 @@ export class RollPigPlugin extends plugin {
           fnc: 'refill'
         },
         {
-          reg: '^#(续火|投票|支持)$',
+          reg: '^#?(续火|投票|支持)$',
           fnc: 'voteRefill'
         },
         {
