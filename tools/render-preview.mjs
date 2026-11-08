@@ -37,7 +37,7 @@ const save = async (name, tplFile, data, file) => {
 
 const date = todayStr()
 const pigs = listOfficialPigs()
-const pigIds = ['pig', 'human', 'bacon', 'ghost-pig', 'pig-king', 'sleepy-pig', 'coder-pig', 'chef-pig', 'ninja-pig', 'doctor-pig', 'ai-pig', 'cloud-pig']
+const pigIds = ['pig', 'human', 'bacon', 'ghost-pig', 'pig-king', 'sleepy-pig', 'coder-pig', 'chef-pig', 'pig-ninja', 'doctor-pig', 'ai-pig', 'cloud-pig']
 const rolls = {}
 for (let index = 0; index < 12; index++) rolls[`u${index}`] = pigIds[index % pigIds.length]
 const now = new Date().toISOString()
