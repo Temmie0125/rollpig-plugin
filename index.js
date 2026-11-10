@@ -14,7 +14,7 @@ import { refreshPigHub } from './lib/commands/pighub.js'
 import { runDailyReportJob, runDailyReportRecovery } from './lib/report/job.js'
 import { deliverReadyReservations, deliverWaitingNotices } from './lib/roast/delivery.js'
 import { resetStaleReservations } from './lib/roast/reservations.js'
-import { expireRefills } from './lib/roast/refill.js'
+import { deliverRefillExpiryNotices, expireRefills } from './lib/roast/refill.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -141,6 +141,7 @@ export class RollPigPlugin extends plugin {
     try {
       await resetStaleReservations()
       await expireRefills()
+      await deliverRefillExpiryNotices({})
       await deliverReadyReservations({})
       await deliverWaitingNotices({})
     } catch (error) {

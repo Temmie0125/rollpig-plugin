@@ -1258,6 +1258,11 @@
     "🔧【补货表决通过】\n{votes} 头小猪支持补货，空掉的燃料格已经重新装满。今日 {benefited} 头活跃小猪现在都是 {max_charges} / {max_charges}。\n本群今天完成了第 {success_count} 次补货。",
     "🔥【烤箱续航恢复】\n{votes} 头小猪把维修单按进了后厨。今日 {benefited} 头活跃小猪的普通烧烤配额已经全部恢复至 {max_charges} / {max_charges}。\n今日成功补货：{success_count} 次。"
   ],
+  "ROAST_REFILL_EXPIRED_TEXTS": [
+    "⏳【续火超时】\n本轮续火投票已到 10 分钟，只集到 {votes} / {required} 头支持，申请作废。\n想继续开火，可再次发送「烤箱续火」重新发起。",
+    "🧯【燃料申请作废】\n10 分钟过去了，联署只凑到 {votes} / {required} 头，维修人员收工了。\n需要的话再发一次「烤箱续火」吧。",
+    "⏳【表决未通过】\n续火投票超时结束：{votes} / {required} 头，燃料仓保持上锁。\n可再次发送「烤箱续火」发起新一轮。"
+  ],
   "ROAST_REFILL_UNSUPPORTED_TEXTS": [
     "当前 QQ 协议端不支持读取「表情回应」投票名单，烤箱续火暂时无法发起。",
     "后厨能发消息，却看不清是谁点了「表情回应」。为避免乱算票，本次补货申请已经停止。",
