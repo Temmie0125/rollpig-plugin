@@ -223,3 +223,45 @@ test('并发投递同一条通知只发一次', async () => {
   assert.equal(sent.length, 1)
   assert.equal(noticeOf(request.request_id), 'sent')
 })
+
+test('缺额提示：票够人不够时明确指出缺表决人数', () => {
+  const mk = (vote_count, required_votes, supporters) => ({ vote_count, required_votes, supporters })
+  assert.equal(refill.refillMissingHint(mk(2, 2, 1)), '票数已够，还需至少 1 名不同小猪参与表决')
+  assert.equal(refill.refillMissingHint(mk(1, 2, 1)), '还差 1 头，且至少还需 1 名小猪参与')
+  assert.equal(refill.refillMissingHint(mk(1, 3, 2)), '还差 2 头')
+  assert.equal(refill.refillMissingHint(mk(3, 3, 2)), '')
+})
+
+/** 按钮回调场景的最小 e 替身，reply 捕获到 replies 数组 */
+const callbackE = (groupId, replies) => (over = {}) => ({
+  sub_type: 'callback', reply_id: undefined, group_id: groupId, user_id: 'u2',
+  isMaster: false, sender: { role: 'member' },
+  reply: async msg => { replies.push(msg); return { message_id: 'm' + replies.length } },
+  ...over
+})
+
+test('管理员先投票：进度 2/2 但未通过时，提示里点明缺表决人数', async () => {
+  const roast = await import('../lib/commands/roast.js')
+  const groupId = 'g-admin-hint'
+  await createVote(groupId)
+  const replies = []
+  const e = callbackE(groupId, replies)
+
+  // 管理员一票顶 2 头：票数立刻 2/2，但只有 1 人参与 → 必须说清缺人，而不是只报 2/2
+  await roast.voteRefillReply({}, e({ user_id: 'u2', sender: { role: 'admin' } }))
+  assert.match(replies.at(-1), /已为你计入续火支持：当前 2\/2 头（票数已够，还需至少 1 名不同小猪参与表决）/)
+
+  // 第二名成员加入 → 人数、票数双达标，正常结算
+  await roast.voteRefillReply({}, e({ user_id: 'u4' }))
+  assert.doesNotMatch(replies.at(-1), /undefined/)
+  assert.match(replies.at(-1), /烤箱续火成功|燃料|补货/)
+
+  // 重复点击：提示已参与，并带当前缺额
+  const repeatGroup = 'g-admin-hint-repeat'
+  await createVote(repeatGroup)
+  const repeatReplies = []
+  const repeatE = callbackE(repeatGroup, repeatReplies)
+  await roast.voteRefillReply({}, repeatE({ user_id: 'u2' }))
+  await roast.voteRefillReply({}, repeatE({ user_id: 'u2' }))
+  assert.match(repeatReplies.at(-1), /已经参与过本轮续火了，当前 1\/2 头（还差 1 头，且至少还需 1 名小猪参与）/)
+})
